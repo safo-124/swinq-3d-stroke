@@ -39,3 +39,23 @@ Outputs `out/stage1_imu.png`, `out/stage1_anchors.png`.
 - **Anchor fix:** front frame 118 had its four labels rotated by one
   (edge→butt, butt→throat, throat→tip, tip→edge). It is corrected at load time
   via `config.ANCHOR_RELABEL`; `anchors.json` itself is unchanged.
+
+## Stage 2 – gyro integration
+
+```
+.venv\Scripts\python scripts\stage2_integrate.py
+.venv\Scripts\python -m pytest
+```
+
+`racket.gyro.integrate(gyro_dps, q0, bias_dps, sign)` returns (N, 4) quaternions
+[w, x, y, z], body→world, with q_{k+1} = q_k ⊗ exp(½·(ω_k+ω_{k+1})·dt) and
+ω = sign·(gyro − bias). `gyro.sample_at(q, s)` slerps to fractional samples.
+Quaternion series are kept sign-continuous (no q→−q jumps).
+
+- Tests: exact for constant-axis rotation; matches a reference product of
+  scipy exponentials; on an analytic moving-axis rotation (~500 deg/s) the max
+  error is 0.027° at 416 Hz, falling 4× per doubling of the sample rate (second order).
+- Real data: 571° of total rotation. Start→impact 163° (sign +1) vs 134° (sign −1).
+  The two signs differ by up to 180°, so the video has to decide the sign.
+- 416 Hz vs a 4× spline-upsampled integration: max 0.18°, so step size is negligible.
+- A 1 deg/s bias on any axis moves the final orientation by 0.3–0.6°.
