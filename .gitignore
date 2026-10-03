@@ -3,3 +3,8 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 out/*.mp4
+# local scratch / duplicates (kept on disk, not in the repo)
+Ba3ST9CQ8zNCX6xYAiN99w.mp4
+hack.txt
+anchors_fixed.json
+out/*_check.png
