@@ -1,41 +1,37 @@
 % =====================================================================
-%  SWINQ: 3D stroke from sensor data -- technical report
-%  Single-file LaTeX (pdfLaTeX, Overleaf). Figures are loaded from img/
-%  if present (stroke_frames.png, contact_sensor_only.png, contact_gp.png,
-%  gp_plot.png); otherwise a labelled placeholder is drawn.
+%  Orientation Reconstruction of a Tennis Stroke from a Dampener-Mounted
+%  6-Axis IMU, with Two-View Video Validation and Gaussian-Process
+%  Drift Correction -- scientific report (pdfLaTeX, single file).
+%
+%  Figures are loaded from img/ if present (stroke_frames.png,
+%  contact_sensor_only.png, contact_gp.png, gp_plot.png); otherwise a
+%  labelled placeholder is drawn, so the file compiles on its own.
 % =====================================================================
 \documentclass[11pt,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\usepackage[margin=2.4cm]{geometry}
+\usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb,bm}
-\usepackage{booktabs,array,multirow}
+\usepackage{booktabs,array}
 \usepackage{siunitx}
 \usepackage{graphicx}
 \usepackage{xcolor}
-\usepackage{caption}
+\usepackage[font=small,labelfont=bf]{caption}
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,calc,3d,shapes.geometric}
-\usepackage[colorlinks=true,linkcolor=tauPurple,citecolor=tauPurple,urlcolor=tauPurple]{hyperref}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage[hidelinks]{hyperref}
 
-\definecolor{tauPurple}{HTML}{4E008E}
-\definecolor{tauLilac}{HTML}{B79CD9}
-\definecolor{accGold}{HTML}{FFB81C}
-\definecolor{accOrange}{HTML}{FF8C00}
-\definecolor{accGreen}{HTML}{2EB82E}
-
-\setlength{\parskip}{0.45em}
-\setlength{\parindent}{0pt}
-\captionsetup{font=small,labelfont={bf,color=tauPurple}}
+\sisetup{detect-all}
+\setlength{\parskip}{0.35em}
 
 % ---------- notation ----------
 \newcommand{\q}{\bm{q}}
 \newcommand{\qv}{\bm{v}}
 \newcommand{\w}{\bm{\omega}}
-\newcommand{\R}{\mathbf{R}}
+\newcommand{\Rm}{\mathbf{R}}
 \newcommand{\ve}[1]{\bm{#1}}
 \newcommand{\qmul}{\otimes}
 \newcommand{\dg}{^{\circ}}
@@ -43,578 +39,443 @@
 \newcommand{\Log}{\operatorname{Log}}
 \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
 
-% figure from file if it exists, else a placeholder
 \newcommand{\maybefig}[3][\linewidth]{%
   \IfFileExists{img/#2}{\includegraphics[width=#1]{img/#2}}{%
-    \fbox{\parbox[c][3.2cm][c]{0.9\linewidth}{\centering\small\color{gray}
-      Figure file \texttt{img/#2} not uploaded.\\ #3}}}}
+    \fbox{\parbox[c][3cm][c]{0.9\linewidth}{\centering\small\color{gray}
+      Figure file \texttt{img/#2} not provided.\\ #3}}}}
 
-\title{\color{tauPurple}\bfseries SWINQ: Reconstructing a Tennis Stroke in 3D\\from a 6-Axis Dampener IMU\\[0.4em]
-\large\mdseries\color{black} Technical report --- Hack For Humanity, Sports Telemetry challenge}
-\author{Team SWINQ}
-\date{3 October 2026}
+\title{\textbf{Orientation Reconstruction of a Tennis Stroke from a\\
+Dampener-Mounted Inertial Sensor, with Two-View Video Validation\\
+and Gaussian-Process Drift Correction}}
+\author{[Author names]\\[0.3em]
+\small [Affiliation]\\
+\small [Contact e-mail]}
+\date{October 2026}
 
 \begin{document}
 \maketitle
 
+% ---------------------------------------------------------------------
 \begin{abstract}
-We reconstruct the three-dimensional orientation of a tennis racket through one forehand from the
-6-axis inertial measurement unit (IMU) inside a SWINQ string dampener: 400 samples at
-\SI{416}{Hz}, starting mid-swing, with the accelerometer saturated at \SI{16}{g} just before impact.
-Orientation is obtained by strapdown integration of the gyroscope with exact exponential quaternion
-steps (verified to $0.03\dg$ on a synthetic $500\dg$/s moving-axis rotation). Two unsynchronised,
-uncalibrated videos are turned into a 3D reference by a two-camera bundle adjustment that uses the
-racket itself as the calibration object. From the sensor alone we report a peak angular velocity of
-$1720\dg$/s, an estimated racket-head speed of \SI{24.6}{m/s} (\SI{89}{km/h}) at impact, a
-reconstructed acceleration peak of about \SI{30}{g} above the saturation limit, and a string
-vibration aliased to \SI{164.5}{Hz} (most likely \SI{581}{Hz}). The sensor-only orientation agrees
-with video to $2$--$11\dg$ in the early swing but drifts in the fast phase. A Gaussian-process (GP)
-drift correction on the orientation error reduces the leave-one-out error against video from a mean
-of $88.4\dg$ to $12.4\dg$ (median $8.3\dg$). We document every model, the numerical checks, the
-hypotheses we ruled out, and the remaining limitations.
+\noindent\textbf{Background.} Low-cost inertial sensors attached to sports equipment could replace
+camera-based motion capture, but a single short, saturated recording without a static period is a
+difficult case for orientation estimation.
+\textbf{Methods.} We reconstruct the three-dimensional orientation of a tennis racket through one
+forehand from a 6-axis inertial measurement unit (IMU) embedded in a string dampener (400 samples
+at \SI{416}{Hz}, accelerometer saturated at \SI{16}{g} before impact). Orientation is computed by
+strapdown integration of the angular rate with exact exponential quaternion updates. An independent
+reference is obtained from two uncalibrated videos by a two-camera bundle adjustment that uses the
+racket as the calibration object. Saturated acceleration is reconstructed from a centripetal model,
+and a Gaussian process (GP) models the residual orientation error between sensor and video.
+\textbf{Results.} The integrator has a maximum error of $0.027\dg$ on a synthetic
+$\approx500\dg/\mathrm{s}$ moving-axis rotation at the sensor rate. From the IMU alone we obtain a
+peak angular rate of $1720\dg/\mathrm{s}$, an estimated racket-head speed at impact of
+\SI{24.6}{m/s}, a reconstructed peak acceleration of approximately \SI{30}{g}, and a string
+vibration aliased to \SI{164.5}{Hz} (most plausibly \SI{581}{Hz}). The sensor-only orientation
+agrees with video within $2$--$11\dg$ in the early swing and diverges in the fast phase. GP drift
+correction reduces the leave-one-out angular error against video from a mean of $88.4\dg$ to
+$12.4\dg$ (median $8.3\dg$).
+\textbf{Conclusions.} A dampener-sized IMU recovers the stroke's orientation and key kinematic
+parameters; residual sensor--video disagreement in the fastest phase points to inter-device time
+synchronisation as the main open problem.
 \end{abstract}
 
-\tableofcontents
-\newpage
+\noindent\textbf{Keywords:} inertial measurement unit; strapdown integration; quaternions; bundle
+adjustment; Gaussian process regression; tennis; sports telemetry.
 
 % =====================================================================
-\section{Problem and data}
+\section{Introduction}
 % =====================================================================
-\subsection{Goal}
-The challenge asks for a 3D model of a tennis stroke relying on the sensor data, robust to sensor
-noise and accelerometer saturation, that shows the racket's orientation and key motion parameters
-and can be extended to full 6-degree-of-freedom (6-DoF) tracking. Two videos of the same stroke
-are provided for reference. We focus on orientation, the rotational half of 6-DoF, which is fully
-observable from a gyroscope up to its initial value.
+Racket-mounted sensors are an inexpensive alternative to optical motion capture for stroke
+analysis. A 6-axis IMU measures angular rate and specific force in its own frame; orientation
+follows from integrating the angular rate, and position, in principle, from double integration of
+acceleration once orientation and gravity are known. In practice the problem is shaped by three
+constraints: the integration constant (the initial orientation) is unobservable from the gyroscope,
+integration accumulates error (drift), and accelerometers of consumer devices saturate during fast
+motion.
 
-\subsection{IMU data}
-The file \texttt{raw\_data.csv} contains $N=400$ samples with columns
-$(a_x,a_y,a_z)$ in $g$ and $(\omega_x,\omega_y,\omega_z)$ in degrees per second. There are no
-timestamps; the sample rate is $f_s=\SI{416}{Hz}$, so sample $k$ is at $t_k=k/f_s$ and the
-record spans $N/f_s=\SI{0.962}{s}$. Table~\ref{tab:imu} lists the facts that shape the method.
+Attitude integration from angular rate is a classical topic in inertial navigation. The rotation
+vector formulation of Bortz~\cite{bortz1971} and the algorithm-design analysis of
+Savage~\cite{savage1998} describe high-order attitude updates and the coning error that arises when
+the rotation axis moves within an update interval. Quaternion kinematics, including the exponential
+and logarithm maps used here, are summarised by Sol\`a~\cite{sola2017}. Averaging of orientation
+estimates on the unit-quaternion manifold follows Markley et al.~\cite{markley2007}.
+
+For the video reference we rely on multi-view geometry~\cite{hartley2004} and bundle
+adjustment~\cite{triggs2000}, the joint non-linear least-squares refinement of camera and structure
+parameters. Camera calibration from a known planar object is classical~\cite{zhang2000}; planar
+pose estimation with the IPPE method~\cite{collins2014} requires a homography, which is degenerate
+for our point configuration (Section~\ref{sec:ba}). The residual sensor--video error is modelled by
+Gaussian process regression~\cite{rasmussen2006}, implemented with scikit-learn~\cite{sklearn2011};
+numerical optimisation uses SciPy~\cite{scipy2020}.
+
+This report makes four contributions: (i) a verified orientation pipeline for a short, mid-swing,
+saturated IMU record; (ii) a two-view reconstruction of the racket that needs no calibration target
+other than the racket itself; (iii) sensor-only estimates of the stroke's kinematic parameters,
+including a physical reconstruction of the saturated acceleration; and (iv) a quantitative,
+leave-one-out comparison of sensor-only and GP-corrected orientation against video, together with
+an explicit account of the hypotheses tested for the residual disagreement.
+
+% =====================================================================
+\section{Materials and methods}
+% =====================================================================
+\subsection{Data}\label{sec:data}
+\paragraph{Inertial data.} The record contains $N=400$ samples of specific force
+$(a_x,a_y,a_z)$ in units of $g$ and angular rate $(\omega_x,\omega_y,\omega_z)$ in degrees per
+second, sampled at $f_s=\SI{416}{Hz}$ ($t_k=k/f_s$; duration \SI{0.962}{s}). Impact occurs at
+sample 200, marked by a one-sample discontinuity in both sensors followed by string ringing. The
+record begins mid-swing, so no static interval is available. The $x$ accelerometer channel is
+saturated at \SI{15.96}{g} on samples 182--199; the peak angular rate, $1720.1\dg/\mathrm{s}$ at
+sample 199, is below the gyroscope range. Table~\ref{tab:imu} summarises the record.
 
 \begin{table}[H]\centering\small
 \caption{Properties of the IMU record.}\label{tab:imu}
 \begin{tabular}{@{}ll@{}}\toprule
-Quantity & Value \\\midrule
 Samples, rate, duration & 400, \SI{416}{Hz}, \SI{0.962}{s} \\
-Impact & sample 200 (one-sample jump in accelerometer and gyroscope) \\
-Peak $\norm{\w}$ & $1720.1\dg$/s at sample 199 (2.4\,ms before impact) \\
-Peak per axis $|\omega_x|,|\omega_y|,|\omega_z|$ & $1232,\;1286,\;1228\dg$/s (no gyro clipping) \\
-Accelerometer saturation & $a_x$ pinned at \SI{15.96}{g} on samples 182--199 (18 samples) \\
-Gyro at samples 199/200/201 & $(791,-1276,840)$, $(793,-766,804)$, $(1134,116,521)\dg$/s \\
-Still period & none (record starts mid-swing) \\\bottomrule
+Impact sample & 200 \\
+Peak $\norm{\w}$ & $1720.1\dg/\mathrm{s}$ (sample 199) \\
+Peak $|\omega_x|,|\omega_y|,|\omega_z|$ & $1232$, $1286$, $1228\dg/\mathrm{s}$ \\
+Accelerometer saturation & $a_x=\SI{15.96}{g}$, samples 182--199 \\
+Gyroscope at samples 199, 200, 201 & $(791,-1276,840)$, $(793,-766,804)$, $(1134,116,521)\dg/\mathrm{s}$\\
+Static interval & none \\\bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Sensor frame}
-The sensor sits on the string bed near the throat. Its right-handed axes are: $x$ along the handle
-towards the butt cap, $y$ across the string face, and $z$ normal to the string face
-(Fig.~\ref{fig:racket}). The $x$ axis is confirmed by the data: in rigid rotation about a pivot at
-distance $r$ along $-x$, the accelerometer's $x$ component carries the centripetal term
+\paragraph{Sensor frame.} The sensor is mounted on the string bed near the throat. Its
+right-handed axes are $x$ along the handle towards the butt, $y$ across the string face and $z$
+normal to the string face (Fig.~\ref{fig:frame}). The $x$ axis is supported by the data: under
+rotation about a pivot at distance $r$ in the $-x$ direction, the $x$ channel contains the
+centripetal term
 \begin{equation}
-a_x \approx r\left(\omega_y^2+\omega_z^2\right) = r\,\omega_\perp^2 ,
+a_x \approx r\,\omega_\perp^2,\qquad \omega_\perp^2=\omega_y^2+\omega_z^2 ,
 \label{eq:centripetal}
 \end{equation}
-where $\omega_\perp$ is the rotation rate perpendicular to the handle. Before impact (samples
-0--181) the correlation between $a_x$ and $\omega_\perp^2$ is $0.92$; after impact (231--399) it is
-$0.99$. The sign convention of positive rotation was not known in advance and is determined from
-the video (Section~\ref{sec:sign}).
+and the observed correlation between $a_x$ and $\omega_\perp^2$ is $0.92$ before impact (samples
+0--181) and $0.99$ after it (samples 231--399). The sign convention of positive rotation was not
+specified and is determined in Section~\ref{sec:start}.
 
 \begin{figure}[H]\centering
-\begin{tikzpicture}[scale=1.15,>=Stealth]
-  % handle
-  \draw[line width=5pt,brown!70!black] (0,0) -- (2.6,0);
-  % head ellipse
-  \draw[line width=2.5pt,tauPurple] (-3.1,0) ellipse (2.1 and 1.25);
-  \draw[tauLilac!60,step=0.3] (-4.9,-1.0) grid (-1.3,1.0);
-  \fill[white] (-6,1.6) rectangle (-0.5,1.0);
-  \fill[white] (-6,-1.6) rectangle (-0.5,-1.0);
-  \draw[line width=2.5pt,tauPurple] (-3.1,0) ellipse (2.1 and 1.25);
-  % sensor
-  \fill[accOrange] (-0.95,0) circle (0.13);
-  \node[below=4pt,font=\scriptsize] at (-0.95,0) {sensor};
-  % axes
-  \draw[->,thick] (-0.95,0) -- (0.6,0) node[above,font=\small]{$x$ (to butt)};
+\begin{tikzpicture}[scale=1.05,>=Stealth]
+  \draw[line width=4pt,brown!70!black] (0,0) -- (2.6,0);
+  \draw[line width=2pt,blue!60!black] (-3.1,0) ellipse (2.1 and 1.25);
+  \fill[orange] (-0.95,0) circle (0.12);
+  \node[below=3pt,font=\scriptsize] at (-0.95,0) {sensor};
+  \draw[->,thick] (-0.95,0) -- (0.7,0) node[above,font=\small]{$x$};
   \draw[->,thick] (-0.95,0) -- (-0.95,1.6) node[left,font=\small]{$y$};
-  \draw[->,thick,dashed] (-0.95,0) -- (-0.35,0.55) node[right,font=\small]{$z$ (face normal)};
-  % points
-  \foreach \p/\n/\a in {(2.6,0)/butt/above,(-0.0,0)/throat/below,(-5.2,0)/tip/left,(-3.1,1.25)/edge/above}
-     {\fill[accGreen] \p circle (0.07); \node[\a,font=\scriptsize] at \p {\n};}
+  \draw[->,thick,dashed] (-0.95,0) -- (-0.35,0.55) node[right,font=\small]{$z$};
+  \foreach \pt/\lab/\pos in {{(2.6,0)}/butt/above,{(0,0)}/throat/below,{(-5.2,0)}/tip/left,{(-3.1,1.25)}/edge/above}
+     {\fill[green!50!black] \pt circle (0.07); \node[\pos,font=\scriptsize] at \pt {\lab};}
 \end{tikzpicture}
-\caption{Racket and sensor frame. Green dots are the four hand-clicked video anchors.}
-\label{fig:racket}
+\caption{Racket, sensor frame and the four anchor points annotated in the videos.}
+\label{fig:frame}
 \end{figure}
 
-\subsection{Videos and anchors}
-Two 1280$\times$720 videos at about 30 frames/s show the stroke from the front and from behind at an
-oblique angle. Impact is at front frame 131 and rear frame 172, and front frame $n$ corresponds to
-rear frame $n+41$. For the 29 frames inside the IMU window (front 117--145), four racket points
-(butt, throat, tip, edge) were clicked in both views. Each moment $i$ maps to an IMU sample
-$s_i = 200 + f_s\,t_i$ with $t_i$ the time from impact. We verified that the decoded presentation
-timestamps match $t_i$ exactly in both views, and we found one labelling error: in front frame 118
-the four labels are rotated by one position (edge$\to$butt, butt$\to$throat, throat$\to$tip,
-tip$\to$edge), which we correct at load time.
+\paragraph{Video data.} Two videos (1280$\times$720 pixels, approximately 30 frames per second)
+record the stroke from the front and from an oblique rear viewpoint. Impact is at front frame 131
+and rear frame 172 (front frame $n$ corresponds to rear frame $n+41$). For the 29 frames within the
+IMU window, the image positions of four racket points (butt, throat, tip and edge of the head) were
+annotated manually in both views. Moment $i$ corresponds to the fractional IMU sample
+$s_i=200+f_s\,t_i$, with $t_i$ the time from impact. Decoded presentation timestamps agree with
+$t_i$ in both views. One annotation error was found and corrected: in front frame 118 the four
+labels were cyclically permuted.
 
-% =====================================================================
-\section{Rotation mathematics}\label{sec:quat}
-% =====================================================================
-\subsection{Unit quaternions}
-An orientation is a unit quaternion $\q=(q_w,\qv)$, $\qv=(q_x,q_y,q_z)$, $\norm{\q}=1$. With the
-Hamilton product
+\subsection{Orientation representation}\label{sec:quat}
+Orientations are unit quaternions $\q=(q_w,\qv)$ with the Hamilton product
 \begin{equation}
-\q_1\qmul\q_2 = \bigl(w_1w_2-\qv_1\!\cdot\!\qv_2,\;\; w_1\qv_2+w_2\qv_1+\qv_1\times\qv_2\bigr),
+\q_1\qmul\q_2=\bigl(w_1w_2-\qv_1\!\cdot\!\qv_2,\; w_1\qv_2+w_2\qv_1+\qv_1\times\qv_2\bigr),
 \end{equation}
-$\q$ rotates a body-frame vector $\ve{u}$ into the world frame as
-$(0,\ve{u}_{\mathrm{w}}) = \q\qmul(0,\ve{u}_{\mathrm{b}})\qmul\q^{-1}$, with $\q^{-1}=(q_w,-\qv)$.
-The equivalent rotation matrix is
+and $\q$ maps body-frame vectors to the world frame,
+$(0,\ve u_{\mathrm w})=\q\qmul(0,\ve u_{\mathrm b})\qmul\q^{-1}$. The exponential map of a rotation
+vector $\ve\phi=\theta\hat{\ve n}$ and its inverse are~\cite{sola2017}
 \begin{equation}
-\R(\q)=\begin{pmatrix}
-1-2(q_y^2+q_z^2) & 2(q_xq_y-q_wq_z) & 2(q_xq_z+q_wq_y)\\
-2(q_xq_y+q_wq_z) & 1-2(q_x^2+q_z^2) & 2(q_yq_z-q_wq_x)\\
-2(q_xq_z-q_wq_y) & 2(q_yq_z+q_wq_x) & 1-2(q_x^2+q_y^2)
-\end{pmatrix}.
-\end{equation}
-Since $\q$ and $-\q$ are the same rotation, we keep integrated series sign-continuous
-($\q_k\cdot\q_{k-1}>0$), which matters for interpolation and for animation in Blender.
-
-\subsection{Exponential and logarithm maps}
-A rotation by angle $\theta$ about unit axis $\hat{\ve{n}}$ is the rotation vector
-$\ve{\phi}=\theta\hat{\ve{n}}$. The exponential map is
-\begin{equation}
-\Exp(\ve{\phi}) = \Bigl(\cos\tfrac{\theta}{2},\; \frac{\sin(\theta/2)}{\theta}\,\ve{\phi}\Bigr),
-\qquad \theta=\norm{\ve{\phi}},
+\Exp(\ve\phi)=\Bigl(\cos\tfrac{\theta}{2},\,\frac{\sin(\theta/2)}{\theta}\,\ve\phi\Bigr),\qquad
+\Log(\q)=\frac{2\,\operatorname{atan2}(\norm{\qv},q_w)}{\norm{\qv}}\,\qv\quad(q_w\ge0),
 \label{eq:exp}
 \end{equation}
-using the series $\sin(\theta/2)/\theta\approx \tfrac12-\theta^2/48$ for $\theta<10^{-8}$. Its
-inverse, for $q_w\ge 0$, is $\Log(\q)=\dfrac{2\operatorname{atan2}(\norm{\qv},q_w)}{\norm{\qv}}\,\qv$,
-which returns angles in $[0,\pi]$.
+with a series expansion for $\theta<10^{-8}$. The geodesic distance is
+$d(\q_1,\q_2)=2\arccos|\q_1\cdot\q_2|$, and orientations at fractional sample indices are obtained
+by spherical linear interpolation,
+$\operatorname{slerp}(\q_1,\q_2,u)=\q_1\qmul\Exp\bigl(u\Log(\q_1^{-1}\qmul\q_2)\bigr)$.
+Integrated series are kept sign-continuous ($\q_k\cdot\q_{k-1}>0$).
 
-\subsection{Distance and interpolation}
-The geodesic angle between two orientations is
+\subsection{Strapdown integration}\label{sec:gyro}
+With bias $\ve b$ and sign convention $\sigma\in\{+1,-1\}$, the body rate is
+$\w_k=\sigma\frac{\pi}{180}(\tilde{\w}_k-\ve b)$. The kinematic equation
+$\dot{\q}=\tfrac12\q\qmul(0,\w)$ is integrated with the mean rate over each interval
+$\Delta t=1/f_s$ and an exact exponential step:
 \begin{equation}
-d(\q_1,\q_2)=2\arccos\bigl|\q_1\cdot\q_2\bigr| ,
-\end{equation}
-and spherical interpolation at fraction $u\in[0,1]$ is
-$\operatorname{slerp}(\q_1,\q_2,u)=\q_1\qmul\Exp\bigl(u\,\Log(\q_1^{-1}\qmul\q_2)\bigr)$.
-We use it to evaluate an orientation at fractional sample indices, e.g.\ $s_i=19.7$.
-
-% =====================================================================
-\section{Gyroscope strapdown integration}\label{sec:gyro}
-% =====================================================================
-\subsection{Model}
-The gyroscope measures body-frame angular velocity. With an unknown constant bias $\ve{b}$ and a
-rotation-sign convention $\sigma\in\{+1,-1\}$, the rate used for integration is
-\begin{equation}
-\w_k = \sigma\,\frac{\pi}{180}\bigl(\tilde{\w}_k-\ve{b}\bigr)\quad[\mathrm{rad/s}].
-\end{equation}
-Orientation obeys the kinematic equation $\dot{\q}=\tfrac12\,\q\qmul(0,\w)$. Over one sample
-interval $\Delta t=1/f_s$ we take the mean of the two end rates and apply the exact exponential:
-\begin{equation}
-\boxed{\;\q_{k+1}=\q_k\qmul\Exp\!\Bigl(\tfrac{1}{2}\bigl(\w_k+\w_{k+1}\bigr)\Delta t\Bigr),\qquad
-\q_0 \text{ given.}\;}
+\q_{k+1}=\q_k\qmul\Exp\!\Bigl(\tfrac12(\w_k+\w_{k+1})\,\Delta t\Bigr).
 \label{eq:integrate}
 \end{equation}
-Right-multiplication applies the increment in the current body frame. In words: the new angle is
-the old angle plus the small turn made during the last $2.4$\,ms.
+The update is exact for a fixed rotation axis. For a moving axis it omits the non-commutativity
+(coning) term $\tfrac12\w\times\dot{\w}$~\cite{bortz1971,savage1998}, giving a local error of
+order $\Delta t^3$ and a global error of order $\Delta t^2$.
 
-\subsection{Accuracy}
-Equation~\eqref{eq:integrate} is exact whenever the rotation axis is fixed during the interval. When
-the axis moves, the commutator $\tfrac12\w\times\dot{\w}$ (the coning term) is neglected, giving a
-local error of order $\Delta t^3$ and a global error of order $\Delta t^2$. We verified this on the
-analytic rotation $\R(t)=\R_z(\alpha t)\,\R_y(\beta t)$ with $\alpha=6$, $\beta=9$\,rad/s, whose
-body rate is
-\begin{equation}
-\w_{\mathrm b}(t)=\R_y(\beta t)^{\!\top}(0,0,\alpha)^{\top}+(0,\beta,0)^{\top},
-\end{equation}
-a moving axis at roughly $500\dg$/s. Table~\ref{tab:conv} shows the maximum orientation error over
-one second: it falls by a factor of 4 per doubling of the rate, confirming second-order convergence.
+\paragraph{Verification.} The analytic rotation $\Rm(t)=\Rm_z(\alpha t)\Rm_y(\beta t)$
+($\alpha=6$, $\beta=9$\,rad/s) has body rate
+$\w_{\mathrm b}(t)=\Rm_y(\beta t)^{\top}(0,0,\alpha)^{\top}+(0,\beta,0)^{\top}$, a moving axis at
+about $500\dg/\mathrm{s}$. Integrating it over one second at several rates
+(Table~\ref{tab:conv}) yields the expected factor-of-four error reduction per doubling of the rate.
+Unit tests further confirm exactness for constant single-axis rates, invariance under zero input,
+bias cancellation, sign reversal, composition order against an independent implementation, and
+continuity through rotations larger than $360\dg$. On the measured data, integration at
+\SI{416}{Hz} and after $4\times$ cubic-spline upsampling differ by at most $0.18\dg$.
 
 \begin{table}[H]\centering\small
-\caption{Integration error on an analytic moving-axis rotation (1\,s, about $500\dg$/s).}\label{tab:conv}
+\caption{Maximum integration error on the analytic moving-axis rotation (1\,s).}\label{tab:conv}
 \begin{tabular}{@{}lcccc@{}}\toprule
-Sample rate (Hz) & 208 & 416 & 832 & 1664 \\\midrule
-Max error (deg) & 0.1073 & \textbf{0.0268} & 0.0067 & 0.0017 \\
-Ratio to next & 4.0 & 4.0 & 4.0 & -- \\\bottomrule
+Rate (Hz) & 208 & 416 & 832 & 1664 \\\midrule
+Max error ($\dg$) & 0.1073 & 0.0268 & 0.0067 & 0.0017 \\\bottomrule
 \end{tabular}
 \end{table}
 
-On the real data, integrating the gyro at 416\,Hz and after $4\times$ cubic-spline upsampling
-differ by at most $0.18\dg$ over the swing ($0.04\dg$ at the end), so step size is not a limitation.
-Unit tests also cover: zero rate (orientation constant), a constant single-axis rate (exact to
-$10^{-9}\dg$), bias cancelling a constant rate, sign reversal, composition order against a
-reference product of scipy rotations, and continuity through $720\dg$.
-
-\subsection{Sensitivity to bias and sign}
-A constant bias $\ve{b}$ adds a spurious rotation that grows with time. On this record a bias of
-$1\dg$/s on any single axis moves the final orientation by $0.3$--$0.6\dg$. The sign matters far
-more: integrated with $\sigma=+1$ the racket turns $163\dg$ from start to impact, with
-$\sigma=-1$ it turns $134\dg$, and the two histories differ by up to $180\dg$. The total rotation
-path $\sum_k d(\q_k,\q_{k+1})$ is $571\dg$ for either sign.
-
-% =====================================================================
-\section{Cameras and racket from the videos}\label{sec:ba}
-% =====================================================================
-\subsection{Camera model}
-Each camera $c\in\{1,2\}$ is a pinhole with square pixels, the principal point at the image centre
-$\ve{c}_0=(640,360)$, no distortion and unknown focal length $f_c$. Camera 1 (front) defines the
-world frame. A racket pose $(\R_i,\ve{t}_i)$ at moment $i$ maps a model point $\ve{P}_j$ (sensor
-frame) into the two cameras:
-\begin{align}
-\ve{X}^{(1)}_{ij} &= \R_i\ve{P}_j+\ve{t}_i, &
-\ve{X}^{(2)}_{ij} &= \R_{21}\ve{X}^{(1)}_{ij}+\ve{t}_{21},\\
-\pi_c(\ve{X}) &= f_c\begin{pmatrix}X/Z\\ Y/Z\end{pmatrix}+\ve{c}_0 . &&
-\end{align}
-The racket model is planar ($Z=0$ for all four points) with butt, throat and tip on the $x$ axis.
-Its scale is fixed by the butt--tip length $L=\SI{0.685}{m}$, which makes the reconstruction metric.
-
-\subsection{Bundle adjustment}
-The unknowns are $\log f_1,\log f_2$, the camera-2 pose $(\ve{\phi}_{21},\ve{t}_{21})$, optionally
-three geometry parameters, and one 6-DoF pose per moment: $8+3+6\times 29=185$ parameters against
-$2\times29\times4\times2=464$ pixel residuals. We minimise
+\subsection{Two-view reconstruction of the racket}\label{sec:ba}
+\paragraph{Camera model.} Each camera $c\in\{1,2\}$ is modelled as a pinhole with focal length
+$f_c$, principal point at the image centre $\ve c_0$ and no distortion; camera 1 defines the world
+frame. With racket pose $(\Rm_i,\ve t_i)$ at moment $i$ and model point $\ve P_j$ (sensor frame),
 \begin{equation}
-E=\sum_{c,i,j}\rho\!\left(\bigl\|\pi_c(\ve{X}^{(c)}_{ij})-\ve{u}^{(c)}_{ij}\bigr\|^2\right),\qquad
-\rho(z)=2\delta^2\Bigl(\sqrt{1+z/\delta^2}-1\Bigr),
+\ve X^{(1)}_{ij}=\Rm_i\ve P_j+\ve t_i,\qquad
+\ve X^{(2)}_{ij}=\Rm_{21}\ve X^{(1)}_{ij}+\ve t_{21},\qquad
+\pi_c(\ve X)=f_c\,(X/Z,\;Y/Z)^{\top}+\ve c_0 .
+\end{equation}
+The model is planar ($Z=0$) with butt, throat and tip collinear on the $x$ axis; its scale is fixed
+by the butt--tip length $L=\SI{0.685}{m}$.
+
+\paragraph{Objective.} The unknowns are $\log f_{1,2}$, the relative pose
+$(\Rm_{21},\ve t_{21})$, three geometry parameters and 29 racket poses (185 parameters, 464
+residuals). We minimise
+\begin{equation}
+E=\sum_{c,i,j}\rho\bigl(\norm{\pi_c(\ve X^{(c)}_{ij})-\ve u^{(c)}_{ij}}^2\bigr),\qquad
+\rho(z)=2\delta^2\bigl(\sqrt{1+z/\delta^2}-1\bigr),\quad \delta=\SI{3}{px},
 \label{eq:ba}
 \end{equation}
-the soft-$L_1$ robust loss with knee $\delta=\SI{3}{px}$. It behaves like least squares for small
-residuals and like an absolute value for outliers such as motion-blurred clicks.
+a soft-$L_1$ robust loss~\cite{triggs2000}, with a trust-region solver and a dense Jacobian
+computed by finite differences grouped according to the block structure (each pose affects only its
+own 16 residuals).
 
-\paragraph{Conditioning: weak perspective.} The racket is about \SI{7}{m} from camera 1 and spans
-only about \SI{150}{px}, so its image scale fixes the ratio $f_1/Z$ well but $f_1$ and $Z$
-separately poorly. We therefore parametrise each translation as
+\paragraph{Parametrisation.} The racket is about \SI{7}{m} from camera 1 and spans roughly
+\SI{150}{px}; under such near-weak-perspective conditions the image determines $f_1/Z$ well but
+$f_1$ and $Z$ individually poorly. Each translation is therefore written as
+$\ve t_i=Z_i(a_i,b_i,1)^{\top}$ with $Z_i=f_1e^{-s_i}$, so that a common rescaling of focal length
+and depths is a single parameter direction, which markedly improves convergence.
+
+\paragraph{Initialisation.} IPPE~\cite{collins2014} and other homography-based planar pose
+estimators are degenerate when three of four points are collinear. Single-view poses were instead
+obtained by Levenberg--Marquardt from the 24 rotations of the octahedral group, retaining distinct
+solutions with RMS error below \SI{15}{px} and positive depth (typically two mirror-related poses
+per view). Each pair of camera-1 and camera-2 candidates implies a relative rotation
+$\Rm_{21}=\Rm^{(2)}\Rm^{(1)\top}$; the rotation supported by the largest number of moments (within
+$15\dg$) initialises the joint problem. After each joint solution, every moment is re-fitted from
+all single-view candidates with the cameras fixed, and the lowest-cost pose is kept. This repairs
+moments that converge to the mirror-ambiguous pose.
+
+\paragraph{Geometry and uncertainty.} The throat fraction $\lambda$ and the edge point
+$(e_x,e_y)$ are estimated jointly ($\ve P_{\mathrm{butt}}=(\lambda L,0,0)$,
+$\ve P_{\mathrm{tip}}=(-(1-\lambda)L,0,0)$). The orientation uncertainty of moment $i$, conditional
+on the camera parameters, is $\Sigma_i=\hat\sigma^2(\mathbf J_i^{\top}\mathbf J_i)^{-1}$, where
+$\mathbf J_i$ is the Jacobian of its residuals with respect to a local body-frame rotation
+$\Rm_i\Exp([\ve\delta]_\times)$ and its translation, and
+$\hat\sigma=1.4826\,\mathrm{median}|r|$ is a robust noise estimate.
+
+\subsection{Joint inertial--video model}\label{sec:joint}
+The planned estimator models the video orientations as
 \begin{equation}
-\ve{t}_i = Z_i\,(a_i,\,b_i,\,1)^{\top},\qquad Z_i = f_1\,e^{-s_i},
+\q^{\mathrm v}_i\approx\q_0\qmul\mathbf Q(s_i+\tau;\ve b,\sigma)\qmul\ve m,
 \end{equation}
-where $(a_i,b_i)$ is the ray to the throat and $s_i=\log(f_1/Z_i)$ the log image scale. The poorly
-determined direction ``scale $f_1$ and every depth together'' then becomes a single coordinate,
-and the trust-region solver converges in tens instead of thousands of iterations. The Jacobian is
-small (about $464\times185$), so we compute it densely by grouped finite differences (each pose
-touches only its own 16 residuals) and use the exact trust-region step.
+with initial orientation $\q_0$, gyro-integrated rotation $\mathbf Q$ (Eq.~\ref{eq:integrate} with
+$\q_0=\mathbf 1$), time offset $\tau$ ($|\tau|\le\SI{50}{ms}$) and mounting rotation $\ve m$. The
+residual $\ve r_i=\Log\bigl((\q_0\qmul\mathbf Q\qmul\ve m)^{-1}\qmul\q^{\mathrm v}_i\bigr)$, whose
+norm is the angular error, is minimised with a soft-$L_1$ loss (knee $5\dg$), down-weighting
+(weight $0.2$) the moments at samples 195--230 affected by the impact transient. To keep the cost
+continuous in $\tau$, the angular-rate record is extended by holding its end values for 30 samples.
 
-\subsection{Initialisation without a homography}
-Standard planar PnP (IPPE) estimates a homography, which needs four points with no three collinear;
-here butt, throat and tip are collinear, so it fails. Instead, for every view we run a batched
-Levenberg--Marquardt solve of the 6-DoF pose from the 24 rotations of the octahedral group, keep
-every distinct solution with RMS error below \SI{15}{px} and positive depth, and obtain the expected
-two mirror-ambiguous poses per view. For each moment, every pairing of a camera-1 and a camera-2
-candidate implies a relative rotation $\R_{21}=\R^{(2)}\R^{(1)\top}$. The rotation agreed on by the
-most moments (within $15\dg$) seeds $\R_{21}$, $\ve{t}_{21}$ and the per-moment poses.
+\subsection{Sensor-only orientation}\label{sec:start}
+Because the initial orientation is unobservable from the gyroscope and no static interval exists,
+$\q_0$ is estimated from the first $n=5$ video moments, assuming zero bias and no mounting
+rotation. Each moment provides $\hat\q_{0,i}=\q^{\mathrm v}_i\qmul\mathbf Q(s_i)^{-1}$, and the
+chordal mean~\cite{markley2007} is the eigenvector of
+$\mathbf M=\sum_i\hat\q_{0,i}\hat\q_{0,i}^{\top}$ associated with the largest eigenvalue. The sign
+convention $\sigma$ is the one that minimises the angular error over these moments.
 
-\subsection{Mirror ambiguity repair}
-A planar object seen nearly edge-on has two poses that reproject almost equally well. After each
-joint solve we hold the cameras fixed and, for every moment, re-fit its pose from all single-view
-candidates of both cameras (camera-2 candidates mapped by $\R^{(1)}=\R_{21}^{\top}\R^{(2)}$,
-$\ve{t}^{(1)}=\R_{21}^{\top}(\ve{t}^{(2)}-\ve{t}_{21})$), keeping the lowest robust cost. Moments
-0 and 10 were repaired this way, and afterwards both focal-length starts ($f=1000$ and $2400$\,px)
-converge to the same solution, with orientations agreeing to $0.02\dg$.
-
-\subsection{Racket geometry}
-The nominal geometry (butt $+0.36$\,m, tip $-0.33$\,m from the throat) does not fit the clicks: in
-both views the clicked throat lies at $0.33$ of the way from butt to tip, not $0.52$. We therefore
-free the throat fraction $\lambda$ and the edge point $(e_x,e_y)$, with the length fixed:
+\subsection{Kinematic parameters}\label{sec:params}
+\paragraph{Pivot radius and speed.} The effective pivot radius is the least-squares slope of
+Eq.~\eqref{eq:centripetal} through the origin over the unsaturated pre-impact samples
+$\mathcal K=\{0,\ldots,181\}$:
 \begin{equation}
-\ve{P}_{\text{butt}}=(\lambda L,0,0),\quad \ve{P}_{\text{tip}}=(-(1-\lambda)L,0,0),\quad
-\ve{P}_{\text{edge}}=(e_x,e_y,0).
+\hat r=\frac{\sum_{k\in\mathcal K}a_{x,k}\,\omega_{\perp,k}^2}{\sum_{k\in\mathcal K}\omega_{\perp,k}^4}.
 \end{equation}
-The refined values are butt $+0.231$\,m, tip $-0.454$\,m and edge $(-0.272,\,+0.149)$\,m. Refining
-lowers the robust cost from $2908$ to $2430$.
-
-\subsection{Uncertainty per moment}
-For each moment we linearise its 16 residuals with respect to a local body-frame rotation
-$\R_i\Exp([\ve{\delta}]_\times)$ and its translation, holding the cameras fixed, and set the pixel
-noise to the robust estimate $\hat\sigma=1.4826\,\operatorname{median}|r|=\SI{3.24}{px}$:
-\begin{equation}
-\Sigma_i=\hat\sigma^2\,(\mathbf{J}_i^{\top}\mathbf{J}_i)^{-1},\qquad
-\sigma_{\text{axis}}=\sqrt{[\Sigma_i]_{kk}}\;(k=1,2,3).
-\end{equation}
-Local perturbations avoid the singularity of the rotation-vector parametrisation near $180\dg$.
-
-\subsection{Results}
-\begin{table}[H]\centering\small
-\caption{Bundle-adjustment results.}\label{tab:ba}
-\begin{tabular}{@{}ll@{}}\toprule
-Focal lengths & front \SI{2224}{px}, rear \SI{1613}{px} \\
-Camera 2 & rotated $87\dg$ from camera 1, centre $(-7.33,-2.15,6.74)$\,m, baseline \SI{10.19}{m}\\
-Racket depth in camera 1 & 6.87--\SI{7.07}{m} \\
-Reprojection error & median \SI{4.29}{px}; RMS front \SI{6.64}{px}, rear \SI{6.02}{px} \\
-Median error per point (front / rear) & butt 3.4/4.3, throat 8.0/5.4, tip 2.1/3.2, edge 3.1/5.5\,px \\
-Orientation $1\sigma$ (median) & roll about $x$: $4.85\dg$; about $y$: $1.28\dg$; about $z$: $1.21\dg$\\
-Worst moment & front frame 117 (most motion-blurred), \SI{14.7}{px} RMS \\\bottomrule
-\end{tabular}
-\end{table}
-As a sanity check on scale: at \SI{7}{m} with $f_1=\SI{2224}{px}$, a \SI{1.8}{m} player is about
-$2224\times1.8/7\approx\SI{570}{px}$ tall, consistent with the front frames. Roll about the handle
-is the least certain axis because only the edge point constrains it. A synthetic test recovers a
-noise-free scene to $<0.05\dg$ and $f$ to $0.1\%$.
-
-% =====================================================================
-\section{Joint IMU--video fit and diagnostics}\label{sec:joint}
-% =====================================================================
-\subsection{Model}
-The planned approach fits the integrated gyro to the 29 video orientations $\q^{\mathrm v}_i$:
-\begin{equation}
-\q^{\mathrm v}_i \;\approx\; \q_0\qmul \mathbf{Q}\!\left(s_i+\tau;\,\ve{b},\sigma\right)\qmul\ve{m},
-\end{equation}
-with $\q_0$ the start orientation, $\mathbf{Q}$ the gyro rotation from sample 0
-(Eq.~\ref{eq:integrate} with $\q_0=\mathbf{1}$), $\tau$ a time offset bounded to $\pm\SI{50}{ms}$,
-and $\ve{m}$ a small sensor-to-racket mounting rotation. The residual is the error rotation vector
-in the racket frame,
-\begin{equation}
-\ve{r}_i=\Log\!\Bigl(\bigl(\q_0\qmul\mathbf{Q}(s_i+\tau)\qmul\ve{m}\bigr)^{-1}\qmul\q^{\mathrm v}_i\Bigr),
-\qquad \norm{\ve{r}_i}=d\bigl(\text{IMU},\text{video}\bigr),
-\end{equation}
-minimised with a soft-$L_1$ loss (knee $5\dg$) and weight $0.2$ on moments in samples 195--230. The
-gyro is padded by holding its end rates for 30 samples, so that $\tau$ can move the end moments
-past the data without the cost becoming discontinuous. $\q_0$ is initialised in closed form
-(Section~\ref{sec:q0}).
-
-\subsection{Outcome}
-The fit has no physical solution (Table~\ref{tab:joint}). Both signs need biases of hundreds of
-degrees per second and a mounting rotation of $58$--$150\dg$, and the time offset runs into its
-bound.
-
-\begin{table}[H]\centering\small
-\caption{Joint fit to the video orientations.}\label{tab:joint}
-\begin{tabular}{@{}lccccc@{}}\toprule
-Sign & median err & mean err & bias $\ve b$ (deg/s) & mount & $\tau$ \\\midrule
-$+1$ & $30.2\dg$ & $46.8\dg$ & $(-132,-22,-266)$ & $150\dg$ & $+50$\,ms (bound)\\
-$-1$ & $35.9\dg$ & $48.1\dg$ & $(-192,-20,-28)$ & $58\dg$ & $-50$\,ms (bound)\\\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Diagnostics}
-\paragraph{Rotation magnitudes.} Comparing the angle turned between consecutive moments (which does
-not depend on $\q_0$) shows that through the fast phase the gyro measures 2--3 times more rotation
-than the video: for example, between moments 6 and 9 the gyro turns $55\dg$ and the video $18\dg$.
-The accelerometer supports the gyro scale: Eq.~\eqref{eq:centripetal} gives a physically sensible
-pivot radius of \SI{0.65}{m}. If the gyro read $k$ times too high, the true rate would be
-$\omega/k$ and the true radius $k^2\times\SI{0.65}{m}$, i.e.\ 4--\SI{6}{m} for $k=2.5$--$3$,
-which is not physical for a forehand.
-
-\paragraph{Axis conventions.} We tested all 48 signed permutation matrices $\mathbf{P}$
-($\tilde{\w}\mapsto\mathbf{P}\tilde{\w}$, both handednesses). The median error between consecutive
-moments is $13.3\dg$ for the best permutation, against $17.8\dg$ for the stated axes with
-$\sigma=-1$. No mapping removes the discrepancy.
-
-\paragraph{Sample rate.} Rescaling time by $f_s'\in[416,1666]$\,Hz (equivalently, integrating
-$\tilde{\w}\,f_s/f_s'$ and mapping $s_i=200+t_if_s'$) never yields a physical fit
-(Table~\ref{tab:rate}).
-
-\begin{table}[H]\centering\small
-\caption{Joint fit as a function of an assumed IMU rate (best sign shown).}\label{tab:rate}
-\begin{tabular}{@{}rrrrr@{}}\toprule
-$f_s'$ (Hz) & moments in window & median err & $\norm{\ve b}$ (deg/s) & mount \\\midrule
-416 & 29 & $30.8\dg$ & 298 & $150\dg$\\
-624 & 19 & $17.8\dg$ & 385 & $52\dg$\\
-833 & 15 & $22.4\dg$ & 301 & $140\dg$\\
-1250 & 9 & $10.4\dg$ & 293 & $178\dg$\\
-1666 & 7 & $9.5\dg$ & 316 & $171\dg$\\\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Pixel-space fit.} To rule out errors in the per-frame video orientations (for instance
-mirror flips), we also fitted the IMU model directly to the clicked pixels, with the cameras fixed
-and a free translation per moment. The best results are a median of \SI{10.4}{px} (sign $-1$) and
-\SI{11.1}{px} (sign $+1$), again with biases of $90$--$450\dg$/s and mountings of $70$--$140\dg$.
-We conclude that, under the stated facts, the IMU and the videos cannot be reconciled by a
-constant-parameter model. The most likely causes are the sensor-to-video time alignment and the
-30\,fps, heavily blurred video in the fast phase.
-
-% =====================================================================
-\section{Sensor-only orientation}\label{sec:sensoronly}
-% =====================================================================
-\subsection{Start orientation by quaternion averaging}\label{sec:q0}
-A gyroscope observes only changes in orientation, and with no still period gravity cannot fix the
-start. We take the start orientation from the first $n=5$ video moments, assuming zero bias and no
-mounting correction. Each moment gives one estimate
-$\hat{\q}_{0,i}=\q^{\mathrm v}_i\qmul\mathbf{Q}(s_i)^{-1}$. Their chordal L2 mean is
-\begin{equation}
-\q_0=\arg\max_{\norm{\q}=1}\;\sum_{i=1}^{n}\bigl(\q\cdot\hat{\q}_{0,i}\bigr)^2
-=\text{eigenvector of }\mathbf{M}=\sum_i\hat{\q}_{0,i}\hat{\q}_{0,i}^{\top}
-\text{ with the largest eigenvalue,}
-\end{equation}
-which is invariant to the $\pm\q$ sign of each estimate.
-
-\subsection{Rotation sign}\label{sec:sign}
-With the start fixed this way, sign $\sigma=-1$ matches the five anchor moments to
-$2.7,\,2.0,\,2.8,\,2.7,\,4.4\dg$, while $\sigma=+1$ gives $17.2,\,9.1,\,2.2,\,7.8,\,19.2\dg$. We
-adopt $\sigma=-1$. The sensor-only orientation is then Eq.~\eqref{eq:integrate} with $\ve b=\ve 0$,
-$\sigma=-1$ and this $\q_0$. It agrees with video to within $11\dg$ up to moment 6 (sample 89,
-0.27\,s before impact) and then drifts to $100$--$170\dg$.
-
-% =====================================================================
-\section{Motion parameters from the sensor}\label{sec:params}
-% =====================================================================
-\subsection{Pivot radius}
-Fitting Eq.~\eqref{eq:centripetal} through the origin on the unclipped pre-impact samples
-$\mathcal{K}=\{0,\dots,181\}$ gives the closed-form least-squares radius
-\begin{equation}
-\hat r=\frac{\sum_{k\in\mathcal K} a_{x,k}\,\omega_{\perp,k}^2}{\sum_{k\in\mathcal K}\omega_{\perp,k}^4}
-=\SI{0.65}{m},\qquad \operatorname{corr}(a_x,\omega_\perp^2)=0.92 ,
-\end{equation}
-with $a_x$ in m/s$^2$ and $\omega_\perp$ in rad/s. This is the distance from the effective pivot
-(wrist and elbow) to the sensor.
-
-\subsection{Speeds}
 For rotation about the pivot, a point at distance $\rho$ from it moves at $v=\omega_\perp\rho$.
-Just before impact (sample 199), $\omega_\perp=1527.5\dg/\mathrm{s}=26.66$\,rad/s, so
-\begin{align}
-v_{\text{sensor}} &= 26.66\times0.65 = \SI{17.4}{m/s},\\
-v_{\text{head}} &= 26.66\times(0.65+0.272) = \SI{24.6}{m/s}\approx\SI{89}{km/h},\\
-v_{\text{tip}} &= 26.66\times(0.65+0.454) = \SI{29.5}{m/s}.
-\end{align}
-These are estimates: they assume rotation about a single fixed pivot and ignore its translation.
 
-\subsection{Saturation repair}
-On samples 182--199, $a_x$ is pinned at \SI{15.96}{g}. Over the whole forward swing, measured $a_x$
-rises roughly linearly while $\hat r\,\omega_\perp^2$ rises quadratically, because the pivot radius
-shrinks as the wrist releases and gravity and tangential terms add an offset. We therefore fit a
-local affine model on the last 12 unclipped samples $\mathcal K'=\{170,\dots,181\}$,
+\paragraph{Saturation reconstruction.} On the saturated samples, $a_x$ is replaced by a local
+affine centripetal model $a_x\approx r'\omega_\perp^2+c$, fitted by least squares on the last 12
+unsaturated samples ($\{170,\ldots,181\}$), where the offset $c$ absorbs gravity and tangential
+components and the local radius accounts for the shortening of the effective lever during wrist
+release.
+
+\paragraph{Vibration frequency.} The dominant post-impact frequency of $a_z$ is obtained from 128
+samples after quadratic detrending, Hann windowing and zero padding. Because a sinusoid at
+frequency $f$ sampled at $f_s$ is indistinguishable from one at $|f-kf_s|$, $k\in\mathbb Z$, the
+observed frequency determines the true one only up to $f_{\mathrm{true}}\in\{f_{\mathrm{obs}},
+f_s-f_{\mathrm{obs}},f_s+f_{\mathrm{obs}},\ldots\}$.
+
+\subsection{Gaussian-process drift correction}\label{sec:gp}
+\paragraph{Residual signal.} With $\q^{\mathrm s}$ the sensor-only orientation, the error at moment
+$i$ is $\ve e_i=\Log\bigl(\q^{\mathrm s}(s_i)^{-1}\qmul\q^{\mathrm v}_i\bigr)\in\mathbb R^3$
+(racket frame). Since $\ve e$ and $\ve e-2\pi\,\ve e/\norm{\ve e}$ represent the same rotation, the
+sequence is unwrapped by choosing, for each $i$, the representation nearest to $\ve e_{i-1}$.
+
+\paragraph{Regression.} Each component $e^{(k)}(t)$ is modelled by an independent GP with
+covariance
 \begin{equation}
-a_x \approx r'\,\omega_\perp^2 + c,\qquad (r',c)=\arg\min\sum_{k\in\mathcal K'}
-\bigl(a_{x,k}-r'\omega_{\perp,k}^2-c\bigr)^2,
+\kappa(t,t')=\sigma_f^2\exp\!\Bigl(-\frac{(t-t')^2}{2\ell^2}\Bigr)+\sigma_n^2\delta_{tt'},
 \end{equation}
-which gives $r'=\SI{0.31}{m}$ and $c=\SI{6.78}{g}$ with correlation $1.00$, joins the measured curve
-continuously, and fills the gap with a peak of \SI{29.5}{g}. The global radius $\hat r$ would give
-\SI{47}{g}, so the true peak lies roughly in 30--\SI{47}{g}; we quote the conservative value.
-
-\subsection{String vibration and aliasing}
-After impact, $a_z$ rings. On 128 post-impact samples, detrended with a quadratic and Hann-windowed,
-the zero-padded spectrum peaks at $f_{\text{obs}}=\SI{164.5}{Hz}$. A sampled sinusoid at $f$ is
-indistinguishable from one at $|f-kf_s|$, so the possible true frequencies are
+plus a known per-moment variance $\alpha_i$ of $(0.02\,\mathrm{rad})^2$, increased to
+$(0.15\,\mathrm{rad})^2$ for the impact-affected moments. With
+$\mathbf K_{ij}=\kappa(t_i,t_j)+\alpha_i\delta_{ij}$ and observations $\ve y$, the posterior mean and
+variance at $t_*$ are~\cite{rasmussen2006}
 \begin{equation}
-f_{\text{true}}\in\{\,f_{\text{obs}},\; f_s-f_{\text{obs}},\; f_s+f_{\text{obs}},\dots\}
-=\{164.5,\;251.5,\;580.5,\dots\}\,\mathrm{Hz}.
+\mu_*(t_*)=\ve k_*^{\top}\mathbf K^{-1}\ve y,\qquad
+\sigma_*^2(t_*)=\kappa(t_*,t_*)-\ve k_*^{\top}\mathbf K^{-1}\ve k_*,
 \end{equation}
-String-bed modes typically lie at 500--650\,Hz, so \SI{581}{Hz} is the most likely value.
+and the hyperparameters $(\sigma_f,\ell,\sigma_n)$ maximise the log marginal likelihood
+$-\tfrac12\ve y^{\top}\mathbf K^{-1}\ve y-\tfrac12\log\det\mathbf K-\tfrac{n}{2}\log2\pi$ with
+$\ell\in[0.02,2]$\,s and three random restarts~\cite{sklearn2011}.
 
-\subsection{Summary}
+\paragraph{Correction and validation.} The corrected orientation at every IMU sample is
+\begin{equation}
+\q^{\mathrm c}(t)=\q^{\mathrm s}(t)\qmul\Exp\bigl(\ve\mu_*(t)\bigr),
+\end{equation}
+with per-sample uncertainty $\sigma_{\mathrm{GP}}(t)=\bigl(\sum_k\sigma_*^{(k)}(t)^2\bigr)^{1/2}$.
+Performance is assessed by leave-one-out cross-validation: for each moment, the GP is trained on the
+remaining 28 moments and its prediction at the held-out moment is compared with the video
+orientation.
+
+% =====================================================================
+\section{Results}
+% =====================================================================
+\subsection{Two-view reconstruction}
+All initialisations ($f=1000$ and $2400$\,px) converged to the same solution, with orientations
+agreeing to $0.02\dg$; two moments (0 and 10) were repaired from the mirror-ambiguous pose.
+Table~\ref{tab:ba} summarises the solution. The nominal racket geometry (butt $+0.36$\,m,
+tip $-0.33$\,m) was inconsistent with the annotations, which place the throat at $0.33$ of the
+butt--tip distance; refinement gave butt $+0.231$\,m, tip $-0.454$\,m and edge
+$(-0.272,+0.149)$\,m, and lowered the robust cost from 2908 to 2430. A synthetic scene with the same
+configuration was recovered to within $0.05\dg$ in orientation and $0.1\%$ in focal length.
+
 \begin{table}[H]\centering\small
-\caption{Key stroke parameters, all from the IMU alone.}\label{tab:params}
+\caption{Two-view bundle-adjustment solution.}\label{tab:ba}
 \begin{tabular}{@{}ll@{}}\toprule
-Peak angular velocity & $1720\dg$/s, 2.4\,ms before impact \\
-Swing rate / roll rate at impact & $1528\dg$/s / $791\dg$/s \\
-Speed at sensor / head centre / tip & 17.4 / \textbf{24.6} / 29.5\,m/s \\
-Rotation in the last 100\,ms before impact & $85\dg$ \\
-Total rotation path over the record & $571\dg$ \\
-Drop in $\norm{\w}$ across impact & $466\dg$/s \\
-Reconstructed peak $a_x$ & $\approx\SI{30}{g}$ (range 30--47\,g) \\
-String vibration & 164.5\,Hz sampled; most likely 581\,Hz \\\bottomrule
+Focal length, front / rear & \SI{2224}{px} / \SI{1613}{px} \\
+Relative camera rotation; baseline & $87\dg$; \SI{10.19}{m} \\
+Racket depth from camera 1 & 6.87--\SI{7.07}{m} \\
+Reprojection error & median \SI{4.29}{px}; RMS \SI{6.64}{px} (front), \SI{6.02}{px} (rear) \\
+Median error by point, front / rear (px) & butt 3.4/4.3; throat 8.0/5.4; tip 2.1/3.2; edge 3.1/5.5 \\
+Robust pixel noise $\hat\sigma$ & \SI{3.24}{px} \\
+Orientation $1\sigma$ (median), about $x$ / $y$ / $z$ & $4.85\dg$ / $1.28\dg$ / $1.21\dg$ \\\bottomrule
 \end{tabular}
 \end{table}
 
-% =====================================================================
-\section{Gaussian-process drift correction}\label{sec:gp}
-% =====================================================================
-\subsection{Error signal}
-Let $\q^{\mathrm s}(s)$ be the sensor-only orientation. At each moment the error rotation vector,
-in the racket frame, is
-\begin{equation}
-\ve{e}_i=\Log\!\bigl(\q^{\mathrm s}(s_i)^{-1}\qmul\q^{\mathrm v}_i\bigr)\in\mathbb{R}^3 .
-\end{equation}
-Near $\norm{\ve e}=\pi$ the logarithm flips between $\ve e$ and the equivalent vector
-$\ve e-2\pi\,\ve e/\norm{\ve e}$, which would show up as a jump. We unwrap the series by choosing,
-for each $i$, whichever of the two forms is closer to $\ve e_{i-1}$, so that $\ve e_i$ is
-continuous in time (here $\norm{\ve e_i}$ reaches $264\dg$).
+\subsection{Joint inertial--video model}
+The joint model did not converge to a physically plausible solution (Table~\ref{tab:joint}): both
+sign conventions required biases of the order of $10^2\dg/\mathrm{s}$, mounting rotations of
+$58$--$150\dg$, and time offsets at the bound. Over the fast phase the gyroscope accumulates two to
+three times more rotation than the video between the same moments (e.g.\ $55\dg$ versus $18\dg$
+between moments 6 and 9).
 
-\subsection{GP regression}
-Each component $e^{(k)}(t)$, $k=1,2,3$, gets an independent zero-mean GP prior (after
-normalisation) with covariance
-\begin{equation}
-\kappa(t,t')=\sigma_f^2\exp\!\Bigl(-\frac{(t-t')^2}{2\ell^2}\Bigr)+\sigma_n^2\,\delta_{tt'},
-\end{equation}
-plus a known per-moment noise variance $\alpha_i$: $(0.02\,\mathrm{rad})^2$ normally, and
-$(0.15\,\mathrm{rad})^2$ for moments in samples 195--230 (the impact transient). With
-$\mathbf K_{ij}=\kappa(t_i,t_j)+\alpha_i\delta_{ij}$, the posterior at time $t_*$ is
-\begin{align}
-\mu_*(t_*) &= \ve{k}_*^{\top}\mathbf{K}^{-1}\ve{y}, &
-\sigma_*^2(t_*) &= \kappa(t_*,t_*)-\ve{k}_*^{\top}\mathbf{K}^{-1}\ve{k}_*,
-\end{align}
-with $\ve y=(e^{(k)}_1,\dots,e^{(k)}_{29})$ and $(\ve k_*)_i=\kappa(t_*,t_i)$. The hyperparameters
-$(\sigma_f,\ell,\sigma_n)$ maximise the log marginal likelihood
-\begin{equation}
-\log p(\ve y\mid t)=-\tfrac12\ve y^{\top}\mathbf K^{-1}\ve y-\tfrac12\log\det\mathbf K-\tfrac{29}{2}\log 2\pi ,
-\end{equation}
-with $\ell\in[0.02,2]$\,s and 3 random restarts. The fitted kernels are
-\begin{center}\small
-$0.978^2\,\mathrm{RBF}(\ell=0.132)+\mathrm{W}(7.9\!\times\!10^{-4})$,\quad
-$0.807^2\,\mathrm{RBF}(\ell=0.111)+\mathrm{W}(6.7\!\times\!10^{-3})$,\quad
-$1.30^2\,\mathrm{RBF}(\ell=0.137)+\mathrm{W}(6.4\!\times\!10^{-2})$,
-\end{center}
-i.e.\ length scales of 0.11--0.14\,s, about four video frames.
+\begin{table}[H]\centering\small
+\caption{Joint inertial--video fit at the nominal sample rate.}\label{tab:joint}
+\begin{tabular}{@{}lccccc@{}}\toprule
+$\sigma$ & median error & mean error & bias $\ve b$ ($\dg/\mathrm{s}$) & mounting & $\tau$ \\\midrule
+$+1$ & $30.2\dg$ & $46.8\dg$ & $(-132,-22,-266)$ & $150\dg$ & $+50$\,ms \\
+$-1$ & $35.9\dg$ & $48.1\dg$ & $(-192,-20,-28)$ & $58\dg$ & $-50$\,ms \\\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection{Correction and uncertainty}
-The predicted error is removed at every IMU sample:
-\begin{equation}
-\boxed{\;\q^{\mathrm c}(t)=\q^{\mathrm s}(t)\qmul\Exp\bigl(\ve\mu_*(t)\bigr)\;}
-\end{equation}
-and the reported uncertainty per sample is
-$\sigma_{\mathrm{GP}}(t)=\sqrt{\sum_k\sigma_*^{(k)}(t)^2}$, with a median of $16.9\dg$ and a
+Three further tests did not remove the discrepancy. (i) Over all 48 signed permutations of the
+gyroscope axes, the best median error between consecutive moments was $13.3\dg$, compared with
+$17.8\dg$ for the stated axes. (ii) Assuming sample rates between 416 and \SI{1666}{Hz} (with the
+moment-to-sample mapping rescaled accordingly) still required biases of 290--$390\dg/\mathrm{s}$.
+(iii) Fitting the inertial model directly to the annotated pixels, with cameras fixed and free
+translations, left median residuals of \SI{10.4}{px} ($\sigma=-1$) and \SI{11.1}{px} ($\sigma=+1$)
+with similarly implausible bias and mounting estimates. The accelerometer independently supports the
+gyroscope scale: the pivot radius implied by Eq.~\eqref{eq:centripetal} is \SI{0.65}{m}, whereas a
+gyroscope reading $k=2.5$--$3$ times too high would imply a true radius of $k^2\times0.65=4$--$6$\,m.
+
+\subsection{Sensor-only orientation}
+With $\q_0$ estimated from the first five moments, $\sigma=-1$ reproduced those moments to
+$2.7$, $2.0$, $2.8$, $2.7$ and $4.4\dg$, while $\sigma=+1$ gave $17.2$, $9.1$, $2.2$, $7.8$ and
+$19.2\dg$; $\sigma=-1$ was therefore adopted. The sensor-only orientation remained within $11\dg$ of
+video up to sample 89 (\SI{0.27}{s} before impact) and diverged thereafter, reaching
+$100$--$170\dg$ around and after impact (Table~\ref{tab:moments}). A constant bias of
+$1\dg/\mathrm{s}$ on any axis changes the final orientation by only $0.3$--$0.6\dg$.
+
+\subsection{Kinematic parameters}
+The pivot radius is $\hat r=\SI{0.65}{m}$ (correlation $0.92$). Immediately before impact,
+$\omega_\perp=1527.5\dg/\mathrm{s}=26.66$\,rad/s, giving speeds of
+$26.66\times0.65=\SI{17.4}{m/s}$ at the sensor, $26.66\times(0.65+0.272)=\SI{24.6}{m/s}$ at the head
+centre and $26.66\times(0.65+0.454)=\SI{29.5}{m/s}$ at the tip. The local saturation model
+($r'=\SI{0.31}{m}$, $c=\SI{6.78}{g}$, correlation $1.00$) reconstructs a peak of \SI{29.5}{g}; the
+global radius would give \SI{47}{g}, which bounds the plausible range. The post-impact vibration
+peaks at \SI{164.5}{Hz}, compatible with true frequencies of $164.5$, $251.5$ or \SI{580.5}{Hz}.
+Table~\ref{tab:params} collects the results.
+
+\begin{table}[H]\centering\small
+\caption{Kinematic parameters estimated from the IMU alone.}\label{tab:params}
+\begin{tabular}{@{}ll@{}}\toprule
+Peak angular rate & $1720\dg/\mathrm{s}$, \SI{2.4}{ms} before impact \\
+Swing rate / roll rate before impact & $1528\dg/\mathrm{s}$ / $791\dg/\mathrm{s}$ \\
+Speed at sensor / head centre / tip & 17.4 / 24.6 / \SI{29.5}{m/s} \\
+Rotation in the last \SI{100}{ms} before impact & $85\dg$ \\
+Total rotation path & $571\dg$ \\
+Change in $\norm{\w}$ across impact & $466\dg/\mathrm{s}$ \\
+Reconstructed peak $a_x$ & \SI{29.5}{g} (plausible range 30--\SI{47}{g}) \\
+Post-impact vibration & \SI{164.5}{Hz} observed; \SI{580.5}{Hz} most plausible \\\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Gaussian-process drift correction}
+The fitted length scales were $0.132$, $0.111$ and \SI{0.137}{s} for the three components
+(approximately four video frames), with signal amplitudes of $0.98$, $0.81$ and $1.30$ (normalised
+units). Table~\ref{tab:gp} compares the angular error against video. The largest leave-one-out
+errors occurred at the impact frame ($44.1\dg$), the following frame ($30.9\dg$) and in the
+follow-through (20--27$\dg$). The per-sample GP standard deviation had a median of $16.9\dg$ and a
 maximum of $22.0\dg$.
 
-\subsection{Leave-one-out validation}
-Fitting and scoring on the same 29 moments would be optimistic. For each moment $i$ we fit the GP on
-the other 28, predict $\ve\mu_*^{(-i)}(t_i)$, and score
-$\varepsilon_i=d\bigl(\q^{\mathrm s}(s_i)\qmul\Exp(\ve\mu_*^{(-i)}(t_i)),\,\q^{\mathrm v}_i\bigr)$.
-
 \begin{table}[H]\centering\small
-\caption{Angle to the video orientation over the 29 moments.}\label{tab:gp}
+\caption{Angular error against the video orientation over the 29 moments.}\label{tab:gp}
 \begin{tabular}{@{}lccc@{}}\toprule
- & mean & median & max \\\midrule
+ & Mean & Median & Maximum \\\midrule
 Sensor only & $88.4\dg$ & $104.2\dg$ & $168.6\dg$ \\
-Gyro + GP, fitted on all moments & $7.5\dg$ & $4.8\dg$ & $33.4\dg$ \\
-\textbf{Gyro + GP, leave-one-out} & $\mathbf{12.4\dg}$ & $\mathbf{8.3\dg}$ & $44.1\dg$ \\\bottomrule
+GP corrected, in-sample & $7.5\dg$ & $4.8\dg$ & $33.4\dg$ \\
+GP corrected, leave-one-out & $12.4\dg$ & $8.3\dg$ & $44.1\dg$ \\\bottomrule
 \end{tabular}
 \end{table}
 
-The largest leave-one-out errors are at the impact frame ($44\dg$), the frame just after it
-($31\dg$) and the sharp turns of the follow-through (20--27$\dg$), where the error changes faster
-than the 30\,fps checkpoints can resolve. Note that $\q^{\mathrm c}$ fuses sensor and video, so we
-also keep the pure sensor result; all parameters in Section~\ref{sec:params} are sensor-only.
-
 \begin{figure}[H]\centering
-\maybefig[0.82\linewidth]{gp_plot.png}{Error components with GP mean and $\pm2\sigma$; error per moment before and after.}
-\caption{Top three panels: error rotation-vector components (dots) with the GP mean and $\pm2\sigma$.
-Bottom: angle to video per moment, sensor only versus GP (all moments and leave-one-out), log scale.}
+\maybefig[0.8\linewidth]{gp_plot.png}{Residual components with GP mean and $\pm2\sigma$; error per moment.}
+\caption{Top: components of the error rotation vector (points) with GP posterior mean and
+$\pm2\sigma$ band. Bottom: angular error per moment for the sensor-only, in-sample and
+leave-one-out GP-corrected orientations (logarithmic scale).}
 \label{fig:gp}
 \end{figure}
 
-% =====================================================================
-\section{Visual validation}\label{sec:visual}
-% =====================================================================
-Using the stage-3 cameras and racket translations, we project the reconstructed racket outline into
-every video frame in the IMU window. Fig.~\ref{fig:contact} compares the sensor-only and the
-GP-corrected results. A $10\times$ slow-motion video (\texttt{gp\_correction.mp4}) shows both rackets
-on the front and rear footage together with the per-frame error; the on-screen errors are the
-leave-one-out values.
-
 \begin{figure}[H]\centering
-\maybefig{contact_sensor_only.png}{Sensor-only overlay, 8 moments per view.}\\[0.4em]
-\maybefig{contact_gp.png}{GP-corrected overlay, 8 moments per view.}
-\caption{Racket outline (green) projected into the front (top rows) and rear (bottom rows) videos,
-from 0.47\,s before to 0.47\,s after impact. Upper pair: sensor only. Lower pair: gyro + GP.
-Red dots: hand-clicked anchors.}
-\label{fig:contact}
+\maybefig{contact_sensor_only.png}{Sensor-only overlay.}\\[0.3em]
+\maybefig{contact_gp.png}{GP-corrected overlay.}
+\caption{Reconstructed racket outline projected into the front (upper row of each pair) and rear
+(lower row) videos from \SI{0.47}{s} before to \SI{0.47}{s} after impact; upper pair sensor-only,
+lower pair GP-corrected. Points mark the manual annotations.}
+\label{fig:overlay}
 \end{figure}
 
-\begin{figure}[H]\centering
-\maybefig[0.7\linewidth]{stroke_frames.png}{3D racket frames.}
-\caption{3D rendering from the sensor orientation: handle (brown), head (blue), string-face normal
-(red) and head path (grey), before impact and in the follow-through.}
-\label{fig:3d}
-\end{figure}
-
-% =====================================================================
-\section{Per-moment results}\label{sec:table}
-% =====================================================================
 \begin{table}[H]\centering\footnotesize
-\caption{Per moment: video frames, IMU sample, bundle-adjustment RMS (px), and orientation error
-against video before and after the GP correction (leave-one-out).}\label{tab:moments}
-\setlength{\tabcolsep}{4pt}
+\caption{Per-moment results: front (F) and rear (R) frame, IMU sample $s_i$, bundle-adjustment RMS
+reprojection error (px), and angular error against video before (S) and after (LOO) GP
+correction ($\dg$).}\label{tab:moments}
+\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{@{}rrrrrrrr|rrrrrrrr@{}}\toprule
-$i$ & F & R & $s_i$ & BA$_\text{F}$ & BA$_\text{R}$ & before & LOO &
-$i$ & F & R & $s_i$ & BA$_\text{F}$ & BA$_\text{R}$ & before & LOO\\\midrule
+$i$ & F & R & $s_i$ & RMS$_\mathrm F$ & RMS$_\mathrm R$ & S & LOO &
+$i$ & F & R & $s_i$ & RMS$_\mathrm F$ & RMS$_\mathrm R$ & S & LOO\\\midrule
 0 & 117 & 158 & 5.9 & 14.7 & 5.2 & 2.7 & 6.9 & 15 & 132 & 173 & 213.9 & 5.2 & 5.0 & 148.7 & 30.9\\
 1 & 118 & 159 & 19.7 & 8.7 & 2.6 & 2.0 & 2.8 & 16 & 133 & 174 & 227.7 & 5.8 & 5.0 & 146.4 & 9.4\\
 2 & 119 & 160 & 33.6 & 7.6 & 2.3 & 2.8 & 2.2 & 17 & 134 & 175 & 241.6 & 9.0 & 3.4 & 160.2 & 12.5\\
@@ -634,74 +495,91 @@ $i$ & F & R & $s_i$ & BA$_\text{F}$ & BA$_\text{R}$ & before & LOO\\\midrule
 \end{table}
 
 % =====================================================================
-\section{Discussion and limitations}\label{sec:discussion}
+\section{Discussion}
 % =====================================================================
-\begin{enumerate}[leftmargin=1.4em,itemsep=0.2em]
-\item \textbf{Sensor versus video.} The central open issue is that the gyro integrates 2--3 times
-more rotation than the video shows in the fast phase. The accelerometer independently supports the
-gyro scale (Eq.~\ref{eq:centripetal}, $r=\SI{0.65}{m}$), and we ruled out axis conventions, sample
-rate, constant bias, mounting rotation and video mirror flips. The remaining suspects are the time
-alignment of the two clocks (impact frames are known only to $\pm1$ frame, \SI{33}{ms}, during which
-the racket turns up to $57\dg$) and the 30\,fps video with heavy motion blur.
-\item \textbf{Fusion.} The GP-corrected orientation fuses sensor and video. It is validated fairly
-(leave-one-out), but it is no longer sensor-only, which is why both results are delivered.
-\item \textbf{Roll about the handle} is the least constrained video axis ($\approx5\dg$ at
-$1\sigma$), because only the edge point carries it.
-\item \textbf{Impact transient.} Samples 200--215 are affected by the impact (the gyro jumps by
-$466\dg$/s); the GP gives these moments larger noise.
-\item \textbf{Speeds} assume a single fixed pivot; a full 6-DoF solution would replace this with
-integrated position.
-\end{enumerate}
+\paragraph{Sensor-only accuracy.} The integration scheme contributes negligible error at the sensor
+rate ($0.027\dg$ on the synthetic test, $0.18\dg$ against upsampled integration on the measured
+data), and the effect of a plausible constant bias is below one degree over the record. The
+agreement within $2$--$11\dg$ over the first \SI{0.27}{s}, of which the first five moments were
+used for initialisation, therefore reflects the combined accuracy of the sensor and the video
+reference in the slow phase of the swing.
 
-\subsection{Towards 6-DoF}
-Position follows from the accelerometer once orientation is known:
-$\ddot{\ve p}_{\mathrm w}=\R(\q)\,\ve a_{\mathrm b}\,g-\ve g_{\mathrm w}$. This requires the
-saturation repair of Section~\ref{sec:params} and a strong prior or anchors (here, the stage-3
-translations) to contain double-integration drift. The pieces developed here, accurate orientation,
-saturation repair and a pivot model, form the base for that step.
+\paragraph{Sensor--video disagreement.} In the fast phase, the two sources disagree by far more
+than either measurement's estimated uncertainty. The tests reported above exclude an incorrect axis
+convention, an incorrect sample rate, a constant bias, a fixed mounting rotation and mirror-pose
+errors in the video reconstruction, and the accelerometer corroborates the gyroscope scale. The
+remaining candidates are (i) the relative timing of the two devices, because the impact frame is
+known only to $\pm1$ frame (\SI{33}{ms}), an interval in which the racket rotates by up to
+$57\dg$; and (ii) the low frame rate and motion blur of the video, which limit the accuracy of the
+annotated racket points precisely when the rotation is fastest. Resolving this requires an
+independent synchronisation signal between the IMU and the cameras.
+
+\paragraph{Drift correction.} The GP correction yields a leave-one-out error of $12.4\dg$, so its
+improvement is not an artefact of fitting the evaluation data. Its largest errors coincide with
+rapid changes of the residual between video frames (impact and the follow-through), where the
+30\,fps sampling of the reference is insufficient. The corrected orientation is a fusion of
+inertial and video information; the kinematic parameters in Table~\ref{tab:params} are derived from
+the inertial data alone.
+
+\paragraph{Limitations.} (i) Roll about the handle is the least constrained video axis
+($\approx5\dg$ at $1\sigma$). (ii) Speed estimates assume rotation about a fixed pivot. (iii) The
+saturation reconstruction depends on the chosen local model; the global model gives a higher peak
+(\SI{47}{g}), and we report the range. (iv) The vibration frequency is determined only up to
+aliasing. (v) The analysis covers a single stroke.
+
+\paragraph{Extension to 6-DoF.} Position follows from
+$\ddot{\ve p}_{\mathrm w}=\Rm(\q)\,\ve a_{\mathrm b}\,g-\ve g_{\mathrm w}$ once orientation is known.
+The saturation reconstruction and the pivot model presented here are prerequisites for this step,
+which additionally requires constraints (for example video anchors or biomechanical priors) to limit
+double-integration drift.
 
 % =====================================================================
-\section{Reproducibility}\label{sec:repro}
-% =====================================================================
-The code is a Python package (\texttt{src/racket}) with one script per stage and 19 unit tests
-(quaternions, integration, loaders, rotation-vector unwrapping and synthetic bundle-adjustment
-recovery). All tunable numbers are in \texttt{config.py}.
-
-\begin{table}[H]\centering\small
-\caption{Pipeline.}\label{tab:pipeline}
-\begin{tabular}{@{}lll@{}}\toprule
-Stage & Script & Main outputs \\\midrule
-1 Inspection & \texttt{stage1\_inspect.py} & IMU and anchor plots \\
-2 Gyro integration & \texttt{stage2\_integrate.py} & integration checks \\
-3 Bundle adjustment & \texttt{stage3\_bundle.py} & \texttt{video\_orientation.csv}, cameras \\
-4 Sensor-only model & \texttt{stage4\_sensor\_model.py} & \texttt{orientation\_sensor\_only.csv}, parameters \\
-5 GP correction & \texttt{stage5\_gp.py} & \texttt{orientation.csv} (with \texttt{gp\_std\_deg}) \\
-6 Overlays & \texttt{stage6\_overlay.py}, \texttt{make\_gp\_video.py} & overlay and demo videos \\
-3D rendering & \texttt{blender/animate\_racket.py} & Blender scene keyframed from the CSV \\\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]\centering\small
-\caption{Main configuration values.}\label{tab:config}
-\begin{tabular}{@{}ll@{}}\toprule
-IMU rate, impact sample & 416\,Hz, 200 \\
-Rotation sign, start anchor & $\sigma=-1$, first 5 video moments \\
-BA loss knee, focal starts & 3\,px, $\{1000,2400\}$\,px \\
-Racket length (scale) & 0.685\,m \\
-Pivot-radius fit / saturation fill windows & samples 0--181 / 170--181 \\
-Joint-fit loss knee, impact weight, $\tau$ bound & $5\dg$, 0.2, $\pm50$\,ms \\
-GP length-scale bounds, noise (normal / impact) & $[0.02,2]$\,s, 0.02 / 0.15\,rad \\\bottomrule
-\end{tabular}
-\end{table}
-
 \section{Conclusion}
-From a single dampener IMU we reconstruct the racket orientation at 416\,Hz with an integrator
-verified to hundredths of a degree, repair accelerometer saturation with a physical model, and
-extract the stroke's key parameters: $1720\dg$/s peak rotation, about \SI{89}{km/h} head speed,
-$85\dg$ of rotation in the last 100\,ms, and about \SI{30}{g} peak load. Against a 3D reference
-built from two uncalibrated videos, the sensor-only orientation is accurate in the early swing.
-A GP drift correction, validated leave-one-out, brings the mean error to $12.4\dg$ over the whole
-stroke. The remaining gap between sensor and video in the fastest phase is documented, not hidden,
-and points to precise time synchronisation as the next step.
+% =====================================================================
+A dampener-mounted 6-axis IMU suffices to reconstruct the orientation of a tennis racket through a
+forehand and to estimate the stroke's principal kinematic parameters, including the peak
+acceleration hidden by sensor saturation. A two-view reconstruction that uses the racket as its own
+calibration object provides an independent reference without a calibration target. The sensor-only
+orientation agrees with this reference in the slow phase of the swing; in the fast phase a
+substantial disagreement remains that is not explained by axis conventions, sample rate, bias or
+mounting, and is most plausibly due to inter-device timing and video limitations. A Gaussian-process
+correction reduces the cross-validated error from $88.4\dg$ to $12.4\dg$. Precise synchronisation
+between sensor and cameras is identified as the most important step towards validated 6-DoF
+tracking.
+
+\section*{Data and code availability}
+The analysis code (Python), unit tests, per-sample orientation estimates, and the scripts used to
+produce all figures and tables are available at
+\url{https://github.com/safo-124/swinq-3d-stroke}.
+
+% =====================================================================
+\begin{thebibliography}{99}\small
+\bibitem{bortz1971} J.~E. Bortz, ``A new mathematical formulation for strapdown inertial
+navigation,'' \emph{IEEE Transactions on Aerospace and Electronic Systems}, vol.~AES-7, no.~1,
+pp.~61--66, 1971.
+\bibitem{savage1998} P.~G. Savage, ``Strapdown inertial navigation integration algorithm design,
+part 1: Attitude algorithms,'' \emph{Journal of Guidance, Control, and Dynamics}, vol.~21, no.~1,
+pp.~19--28, 1998.
+\bibitem{sola2017} J.~Sol\`a, ``Quaternion kinematics for the error-state Kalman filter,''
+arXiv:1711.02508, 2017.
+\bibitem{markley2007} F.~L. Markley, Y.~Cheng, J.~L. Crassidis, and Y.~Oshman, ``Averaging
+quaternions,'' \emph{Journal of Guidance, Control, and Dynamics}, vol.~30, no.~4, pp.~1193--1197,
+2007.
+\bibitem{hartley2004} R.~Hartley and A.~Zisserman, \emph{Multiple View Geometry in Computer Vision},
+2nd~ed. Cambridge University Press, 2004.
+\bibitem{triggs2000} B.~Triggs, P.~F. McLauchlan, R.~I. Hartley, and A.~W. Fitzgibbon, ``Bundle
+adjustment---a modern synthesis,'' in \emph{Vision Algorithms: Theory and Practice}, LNCS~1883,
+Springer, 2000, pp.~298--372.
+\bibitem{zhang2000} Z.~Zhang, ``A flexible new technique for camera calibration,'' \emph{IEEE
+Transactions on Pattern Analysis and Machine Intelligence}, vol.~22, no.~11, pp.~1330--1334, 2000.
+\bibitem{collins2014} T.~Collins and A.~Bartoli, ``Infinitesimal plane-based pose estimation,''
+\emph{International Journal of Computer Vision}, vol.~109, no.~3, pp.~252--286, 2014.
+\bibitem{rasmussen2006} C.~E. Rasmussen and C.~K.~I. Williams, \emph{Gaussian Processes for Machine
+Learning}. MIT Press, 2006.
+\bibitem{sklearn2011} F.~Pedregosa \emph{et al.}, ``Scikit-learn: Machine learning in Python,''
+\emph{Journal of Machine Learning Research}, vol.~12, pp.~2825--2830, 2011.
+\bibitem{scipy2020} P.~Virtanen \emph{et al.}, ``SciPy 1.0: Fundamental algorithms for scientific
+computing in Python,'' \emph{Nature Methods}, vol.~17, pp.~261--272, 2020.
+\end{thebibliography}
 
 \end{document}
