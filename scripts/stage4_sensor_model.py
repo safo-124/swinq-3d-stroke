@@ -1,7 +1,7 @@
 """Stage 4 (revised): sensor-only stroke model, motion parameters, 3D animation.
 
 Outputs:
-  out/orientation.csv      per sample: racket orientation (camera-1 frame and Blender z-up)
+  out/orientation_sensor_only.csv  per sample: sensor-only orientation (camera-1 and Blender z-up)
   out/motion_params.json   key stroke numbers from the IMU
   out/stage4_summary.png   rates, speeds, reconstructed ax, video agreement
   out/stroke_3d.mp4        3D animation of the racket from the sensor data
