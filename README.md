@@ -1,83 +1,129 @@
-# SWINQ: 3D stroke from sensor data (Hack For Humanity – Sports Telemetry)
+# SWINQ: 3D stroke from sensor data
 
-Reconstruct the 3D orientation of a tennis racket through one forehand from the
-SWINQ dampener's 6-axis IMU (416 Hz, 400 samples, 0.96 s), and render it in Blender.
-The racket model comes from the sensor alone; the two videos give the starting
-orientation and an independent check.
+**Hack For Humanity – Sports Telemetry challenge.** We rebuild a full tennis forehand in 3D from the
+6-axis IMU inside a SWINQ string dampener: 400 readings at 416 Hz (0.96 s), starting mid-swing
+with no still moment, and with the accelerometer saturated at 16 g just before impact. The racket's
+orientation is integrated from the gyroscope, the clipped acceleration is rebuilt from physics, and
+the key stroke parameters come from the sensor alone. Two uncalibrated videos are turned into an
+independent 3D reference by using the racket itself as the calibration object, and a
+Gaussian-process drift correction, tested on frames it never saw, brings the sensor's racket onto
+the video's.
 
-## Headline results
+## Final results
 
-| | |
+### Stroke parameters (sensor only)
+
+| Quantity | Result |
 |---|---|
-| Orientation | gyro strapdown with exact exponential steps (0.03° error on a synthetic 500°/s moving-axis test) |
-| Start orientation | from video moments 0–4; gyro (sign −1) then matches video to **2.0–4.4°** |
 | Peak angular velocity | **1720°/s**, 2.4 ms before impact |
-| Swing rate at impact | 1528°/s (roll about the handle 791°/s) |
-| Estimated speed at impact | sensor 17.4 m/s, head centre **24.6 m/s (89 km/h)**, tip 29.5 m/s (pivot radius 0.65 m from ax ≈ r·ω⊥², corr 0.92) |
-| Rotation in the last 100 ms | 85° |
-| Saturation repair | ax clipped at 16 g on samples 182–199; filled with r·ω⊥² + c (fit corr 1.00) → peak about 29.5 g |
-| String vibration | 164.5 Hz as sampled; at 416 Hz this is an alias of 251 or **581 Hz** (typical string-bed range) |
-| Video check, sensor only | within 5° up to about 0.18 s before impact; diverges after (see "Known limitation") |
-| **Video check, gyro + GP drift correction** | **mean 12.4°, median 8.3° leave-one-out** (was 88° mean); worst 44° at the impact frame |
+| Swing rate / roll rate before impact | 1528°/s / 791°/s |
+| Racket-head speed at impact | **24.6 m/s ≈ 89 km/h** (sensor 17.4 m/s, tip 29.5 m/s); pivot radius 0.65 m from aₓ ≈ r·ω⊥² (corr 0.92) |
+| Racket rotation in the last 100 ms | **85°** |
+| Total rotation over the record | 571° |
+| Peak acceleration (saturated at 16 g) | **≈ 30 g** rebuilt from aₓ ≈ r·ω⊥² + c (fit corr 1.00); plausible range 30–47 g |
+| String vibration | 164.5 Hz as sampled → most likely **581 Hz** (alias at 416 Hz sampling) |
 
-## Run everything
+### Accuracy
 
-```
-.venv\Scripts\python scripts\stage1_inspect.py
-.venv\Scripts\python scripts\stage2_integrate.py
-.venv\Scripts\python scripts\stage3_bundle.py          # ~1.5 min, video orientations
-.venv\Scripts\python scripts\stage4_sensor_model.py    # orientation_sensor_only.csv, motion params, 3D animation
-.venv\Scripts\python scripts\stage5_gp.py              # GP drift correction -> orientation.csv
-.venv\Scripts\python scripts\stage6_overlay.py         # overlays on both videos
-.venv\Scripts\python scripts\make_demo.py              # out/demo.mp4, 10x slow motion
-blender --python blender\animate_racket.py             # Blender scene, keyframed from out/orientation.csv
-blender --background --python blender\animate_racket.py -- --render out\blender_stroke.mp4
-```
+| Check | Result |
+|---|---|
+| Integrator on a synthetic 500°/s moving-axis rotation | max **0.027°** at 416 Hz (error falls 4× per doubling of the rate) |
+| Two-camera reconstruction | focal lengths 2224 / 1613 px, cameras 87° apart; median reprojection **4.3 px**; orientation 1σ ≈ 1.3° (tilt), 4.9° (roll about the handle) |
+| Sensor-only vs video | within **2–11°** for the first 0.27 s, then drifts to 100–170° |
+| **Gyro + GP drift correction vs video, leave-one-out** | mean **12.4°**, median **8.3°** (was 88.4° mean); worst 44° at the impact frame |
 
-Deliverables in `out/`: `orientation.csv` (per sample: GP-corrected racket quaternion in the
-camera-1 frame, `gp_std_deg`, plus `bl_q*` in a z-up Blender world), `orientation_sensor_only.csv`
-(the same without the video correction), `motion_params.json`, `demo.mp4`,
-`stroke_3d.mp4` (matplotlib 3D animation; no Blender needed), `stage4_summary.png`.
+`out/orientation.csv` is the GP-corrected orientation, which fuses sensor and video.
+`out/orientation_sensor_only.csv` is the pure sensor result. All stroke parameters above are
+sensor-only.
 
-## Known limitation (stated plainly)
+## Deliverables
 
-Gyro and video orientations agree to 2–5° for the first ~0.2 s, then diverge, by
-100–170° around and after impact. We tested and ruled out:
-- the rotation sign and all 48 signed axis permutations of the gyro (best 13° median between consecutive moments);
-- the IMU sample rate (416–1666 Hz scanned);
-- a joint fit with bias, mounting correction and time offset, both on per-frame video
-  orientations and directly on the clicked pixels (`scripts/diagnostics/pixel_fit.py`).
-  Every fit needs biases of 200–450 deg/s and a 70–150° mounting correction, which is
-  not physical, and still leaves about 10 px.
+| What | Where |
+|---|---|
+| Racket orientation for every sample (GP-corrected, with `gp_std_deg`, plus Blender z-up `bl_q*` columns) | `out/orientation.csv` |
+| Same, sensor only | `out/orientation_sensor_only.csv` |
+| Stroke parameters | `out/motion_params.json`, `out/stage4_summary.png` |
+| Before/after GP video (orange = sensor only, green = gyro + GP, 10× slow) | `out/gp_correction.mp4` |
+| Side-by-side demo (front, rear, corrected racket; 10× slow) | `out/demo.mp4` |
+| 3D animations (no Blender needed) | `out/stroke_3d.mp4` (sensor only), `out/stroke_3d_gp.mp4` (corrected) |
+| Overlays on both videos | `out/overlay_front.mp4`, `out/overlay_rear.mp4`, `out/overlay_contact_sheet.png` |
+| Blender scene script, plus a ready-to-run bundle with the CSV | `blender/animate_racket.py`, `blender.zip` |
+| Pitch script (3 min, plain-language notes, judge Q&A) | `out/SWINQ_pitch.pdf` |
+| Beamer slides (Tampere purple, TikZ, transitions), Overleaf-ready | `latex/main.tex`, `out/swinq_beamer_overleaf.zip` |
+| Scientific report (IMRaD, full maths, references) | `latex/report.tex` |
 
-Through mid-swing the gyro measures 2–3× more rotation than the video shows, yet the
-accelerometer confirms the gyro scale (centripetal radius 0.65 m is physical). The
-remaining suspects are the video/IMU time alignment and the per-frame video poses at
-30 fps with heavy motion blur. Stage 5 corrects the drift with a GP fitted to the video
-moments. That makes `orientation.csv` a sensor + video fusion, so the pure sensor result is
-kept in `orientation_sensor_only.csv`.
-
-## Layout
-
-```
-data/raw_data.csv     IMU: index, ax ay az (g), gx gy gz (deg/s)
-data/anchors.json     hand-clicked butt/throat/tip/edge pixels, 29 moments x 2 views
-video/                swing_angle_1.mp4 (front), swing_angle_2.mp4 (rear oblique)
-src/racket/           package: config.py (all tunables), io.py, ...
-scripts/stageN_*.py   one script per stage
-blender/              Blender scene script
-scripts/diagnostics/  IMU-vs-video investigation
-tests/                pytest
-out/                  generated plots / CSV / videos
-```
-
-## Setup
+## Quick start
 
 ```
 py -3.12 -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
-.venv\Scripts\python -m pytest
+.venv\Scripts\python -m pytest                          # 19 tests
 ```
+
+Run the pipeline in order:
+
+```
+.venv\Scripts\python scripts\stage1_inspect.py          # IMU and anchor plots
+.venv\Scripts\python scripts\stage2_integrate.py        # integration checks
+.venv\Scripts\python scripts\stage3_bundle.py           # ~1.5 min: cameras + video orientations
+.venv\Scripts\python scripts\stage4_sensor_model.py     # sensor-only orientation, stroke parameters
+.venv\Scripts\python scripts\stage5_gp.py               # GP drift correction -> out/orientation.csv
+.venv\Scripts\python scripts\stage6_overlay.py          # overlays on both videos
+.venv\Scripts\python scripts\make_demo.py               # out/demo.mp4
+.venv\Scripts\python scripts\make_gp_video.py           # out/gp_correction.mp4
+.venv\Scripts\python scripts\make_pitch_pdf.py          # out/SWINQ_pitch.pdf from the slide notes
+```
+
+**Blender:** unzip `blender.zip` (it keeps the `blender/` and `out/` folders), then
+
+```
+blender --python blender\animate_racket.py
+blender --background --python blender\animate_racket.py -- --render out\blender_stroke.mp4
+```
+
+The script builds a racket, keyframes it from `out/orientation.csv` at 8× slow motion and marks
+impact on the timeline. It has not yet been run in Blender, so please report any errors.
+
+**LaTeX:** upload `out/swinq_beamer_overleaf.zip` to Overleaf for the slides. For the report, use
+`latex/report.tex` as the main file, with the images from `latex/img/` in an `img/` folder.
+
+## Known limitation (stated plainly)
+
+In the fast phase of the swing the gyroscope measures 2–3× more rotation than the 30 fps video
+shows, so the sensor-only orientation drifts away from the video after about 0.2 s before impact.
+We tested and ruled out:
+- the rotation sign and all 48 signed axis permutations of the gyro (best 13° median between consecutive moments);
+- the IMU sample rate (416–1666 Hz scanned);
+- a constant gyro bias, a mounting rotation and a time offset, fitted both to the per-frame video
+  orientations and directly to the clicked pixels (`scripts/diagnostics/pixel_fit.py`). Every fit
+  needs 200–450°/s of bias and a 70–150° mounting rotation, which is not physical;
+- mirror-pose errors in the video reconstruction (2 frames detected and repaired).
+
+The accelerometer supports the gyroscope's scale: the 0.65 m pivot radius is physical, whereas a
+gyro reading 2.5–3× too high would imply 4–6 m. The remaining suspects are the time alignment
+between sensor and cameras (impact is known only to ±1 frame, 33 ms, in which the racket turns up to
+57°) and motion blur at 30 fps. The GP correction compensates for the drift; proper synchronisation
+is the next step towards a sensor-only result that holds through impact and towards 6-DoF tracking.
+
+## Layout
+
+```
+data/raw_data.csv        IMU: index, ax ay az (g), gx gy gz (deg/s)
+data/anchors.json        hand-clicked butt/throat/tip/edge pixels, 29 moments x 2 views
+video/                   swing_angle_1.mp4 (front), swing_angle_2.mp4 (rear oblique)
+src/racket/              package: config (all tunables), io, quat, gyro, cameras, joint, motion, gp
+scripts/stageN_*.py      one script per stage; make_*.py for videos and the pitch PDF
+scripts/diagnostics/     IMU-vs-video investigation (pixel-space fit)
+blender/                 Blender scene script
+latex/                   Beamer slides (main.tex), scientific report (report.tex), img/
+pitch_deck/              slide-deck sources (HTML slides + speaker notes)
+tests/                   pytest (quaternions, integration, loaders, unwrapping, synthetic BA)
+out/                     generated CSVs, plots, videos, PDFs
+```
+
+---
+
+# Stage details
 
 ## Stage 1 – inspection
 
@@ -87,34 +133,31 @@ py -3.12 -m venv .venv
 
 Outputs `out/stage1_imu.png`, `out/stage1_anchors.png`.
 
-- 400 samples = 0.962 s. Peak |ω| 1720 deg/s. ax pinned at 15.96 g on samples 182–199.
-- ax vs centripetal load (gy²+gz²): corr 0.92 pre-impact (radius 0.65 m),
-  0.99 post-impact (radius 0.40 m). X axis along the handle is confirmed.
-- Video pts times match `t_from_impact_s` exactly in both views. Front video has
-  one dropped frame (66.7 ms gap after frame 99), outside the IMU window.
-- **Anchor fix:** front frame 118 had its four labels rotated by one
-  (edge→butt, butt→throat, throat→tip, tip→edge). It is corrected at load time
-  via `config.ANCHOR_RELABEL`; `anchors.json` itself is unchanged.
+- 400 samples = 0.962 s. Peak |ω| 1720 deg/s. aₓ pinned at 15.96 g on samples 182–199.
+- aₓ vs centripetal load (gy²+gz²): corr 0.92 before impact (radius 0.65 m), 0.99 after impact
+  (radius 0.40 m). The x axis along the handle is confirmed.
+- Video timestamps match `t_from_impact_s` exactly in both views. The front video has one dropped
+  frame (66.7 ms gap after frame 99), outside the IMU window.
+- **Anchor fix:** front frame 118 had its four labels rotated by one (edge→butt, butt→throat,
+  throat→tip, tip→edge). It is corrected at load time via `config.ANCHOR_RELABEL`;
+  `anchors.json` itself is unchanged.
 
 ## Stage 2 – gyro integration
 
 ```
 .venv\Scripts\python scripts\stage2_integrate.py
-.venv\Scripts\python -m pytest
 ```
 
-`racket.gyro.integrate(gyro_dps, q0, bias_dps, sign)` returns (N, 4) quaternions
-[w, x, y, z], body→world, with q_{k+1} = q_k ⊗ exp(½·(ω_k+ω_{k+1})·dt) and
-ω = sign·(gyro − bias). `gyro.sample_at(q, s)` slerps to fractional samples.
-Quaternion series are kept sign-continuous (no q→−q jumps).
+`racket.gyro.integrate(gyro_dps, q0, bias_dps, sign)` returns (N, 4) quaternions [w, x, y, z],
+body→world, with q_{k+1} = q_k ⊗ exp(½·(ω_k+ω_{k+1})·dt) and ω = sign·(gyro − bias).
+`gyro.sample_at(q, s)` slerps to fractional samples. Quaternion series are kept sign-continuous.
 
-- Tests: exact for constant-axis rotation; matches a reference product of
-  scipy exponentials; on an analytic moving-axis rotation (~500 deg/s) the max
-  error is 0.027° at 416 Hz, falling 4× per doubling of the sample rate (second order).
+- Tests: exact for constant-axis rotation; matches a reference product of scipy exponentials; on an
+  analytic moving-axis rotation (~500°/s) the max error is 0.027° at 416 Hz, falling 4× per
+  doubling of the sample rate (second order).
 - Real data: 571° of total rotation. Start→impact 163° (sign +1) vs 134° (sign −1).
-  The two signs differ by up to 180°, so the video has to decide the sign.
 - 416 Hz vs a 4× spline-upsampled integration: max 0.18°, so step size is negligible.
-- A 1 deg/s bias on any axis moves the final orientation by 0.3–0.6°.
+- A 1°/s bias on any axis moves the final orientation by 0.3–0.6°.
 
 ## Stage 3 – cameras and racket from the videos
 
@@ -123,62 +166,35 @@ Quaternion series are kept sign-continuous (no q→−q jumps).
 .venv\Scripts\python scripts\stage3_bundle.py --fixed-geometry
 ```
 
-Bundle adjustment (`racket.cameras`): focal length per camera (principal point
-at the image centre, no distortion), camera-2 pose relative to camera 1, and the
-racket pose at each of the 29 moments. Minimises 4-point reprojection error in both
-views with a soft-L1 loss (3 px knee). World = camera 1; scale comes from the fixed
-0.685 m butt–tip length. Outputs `out/video_orientation.csv` (racket→camera-1
-quaternion, translation, per-moment RMS, 1σ per body axis), `out/stage3_cameras.json`,
-and the plots `stage3_errors.png`, `stage3_scene.png`, `stage3_reprojection.png`.
+Bundle adjustment (`racket.cameras`): focal length per camera (principal point at the image centre,
+no distortion), camera-2 pose relative to camera 1, and the racket pose at each of the 29 moments,
+minimising 4-point reprojection error in both views with a soft-L1 loss (3 px knee). World =
+camera 1; scale from the fixed 0.685 m butt–tip length. Outputs `out/video_orientation.csv`,
+`out/stage3_cameras.json`, `stage3_errors.png`, `stage3_scene.png`, `stage3_reprojection.png`.
 
-How it works:
-- Homography/IPPE PnP fails because butt, throat and tip are collinear. Single-view
-  poses are found instead by a batched multi-start LM (24 octahedral starts). Each
-  view gives 2 mirror-ambiguous poses; the camera-2 rotation most moments agree on
-  seeds the joint fit.
-- Translations are parametrised as (ray a, b, log f/z). The racket is about 7 m away
-  (close to weak perspective), so focal length and depth trade off against each other.
-- After each joint fit, every moment is re-seeded from all of its mirror candidates
-  with the cameras held fixed. This repaired moments 0 and 10, which had settled in
-  the wrong mirror pose. Both focal starts now converge to the same answer (0.02° spread).
+- Homography/IPPE PnP fails because butt, throat and tip are collinear; single-view poses come from
+  a batched multi-start Levenberg–Marquardt (24 octahedral starts), and the camera-2 rotation most
+  moments agree on seeds the joint fit.
+- Translations are parametrised as (ray a, b, log f/z) because the racket is ~7 m away (close to
+  weak perspective), where focal length and depth trade off.
+- After each joint fit, every moment is re-seeded from all of its mirror candidates with the cameras
+  fixed; this repaired moments 0 and 10. Both focal starts converge to the same answer (0.02°).
+- Results: focal lengths 2224 / 1613 px; camera 2 rotated 87°, 10.2 m away; racket 6.9–7.1 m from
+  camera 1; reprojection median 4.3 px (RMS 6.6 / 6.0 px); worst moment front frame 117 (14.7 px,
+  most blurred); orientation 1σ ≈ 4.9° roll, 1.2–1.3° on the other axes.
+- Refined geometry (sensor frame, m): butt +0.231, tip −0.454, edge (−0.272, +0.149). The brief's
+  guess (butt +0.36 / tip −0.33) does not fit the clicks; fixed geometry raises the cost from 2430 to 2908.
 - Synthetic test: a noise-free scene is recovered to < 0.05° and f to 0.1%.
-
-Results:
-- **Focal lengths: front 2224 px, rear 1613 px.** Camera 2 is rotated 87° from camera 1,
-  10.2 m away; the racket is 6.9–7.1 m from camera 1.
-- **Reprojection: median 4.3 px, RMS front 6.6 px, rear 6.0 px.** Worst moment: front
-  frame 117 at 14.7 px, the most blurred frame. The throat click is the noisiest point
-  (8.0 px median, front).
-- **Orientation 1σ per moment** (with the cameras held fixed, using a robust noise
-  estimate): about 4.9° roll about the handle and 1.2–1.3° about the other two axes.
-- **Refined geometry** (sensor frame, m): butt +0.231, tip −0.454, edge (−0.272, +0.149).
-  The brief's guess (butt +0.36 / tip −0.33) does not fit the clicks: the clicked throat
-  sits at 0.33 of butt→tip. Fixed geometry raises the cost from 2430 to 2908.
-- Early check against the gyro (zero bias): with sign −1, the rotations between moments
-  0–4 agree to 3–5°; sign +1 is worse. Across all moments the rotation between
-  consecutive moments disagrees by about 18° median. No signed axis permutation
-  explains this (the best is 13°), which points to video noise and sync. Stage 4 handles it.
 
 ## Stage 4 – joint fit (attempted) and the sensor-only model
 
-`racket.joint` fits q0, gyro bias, mounting correction, time offset and sign to the
-29 video orientations (soft-L1, impact moments down-weighted). It does not converge
-to a physical solution (see "Known limitation"). The delivered model
-(`racket.motion`, `scripts/stage4_sensor_model.py`) therefore uses the video only for
-the starting orientation (moments 0–4, sign −1, zero bias) and the IMU for everything else.
-
-## Stage 6 – overlay check
-
-```
-.venv\Scripts\python scripts\stage6_overlay.py
-```
-
-Draws the sensor-only racket (green; red stub = face normal) on every IMU-window frame
-of both videos, with the clicked points in red and the angle to the video pose in the
-caption. Outputs `out/overlay_front.mp4`, `out/overlay_rear.mp4` (6 fps) and
-`out/overlay_contact_sheet.png`. The racket position comes from stage 3, because the
-IMU gives orientation only. The overlay sits on the racket from −0.47 s to −0.27 s
-(3–11°) in both views and diverges from −0.20 s, as described under "Known limitation".
+`racket.joint` fits q0, gyro bias, mounting correction, time offset and sign to the 29 video
+orientations (soft-L1, impact moments down-weighted). It does not converge to a physical solution
+(see "Known limitation"). The sensor-only model (`racket.motion`, `scripts/stage4_sensor_model.py`)
+uses the video only for the starting orientation (chordal mean over moments 0–4, sign −1, zero
+bias; error 2.0–4.4° on those moments) and the IMU for everything else. It writes
+`out/orientation_sensor_only.csv`, `out/motion_params.json`, `out/stage4_summary.png` and
+`out/stroke_3d.mp4`.
 
 ## Stage 5 – GP drift correction
 
@@ -186,11 +202,11 @@ IMU gives orientation only. The overlay sits on the racket from −0.47 s to −
 .venv\Scripts\python scripts\stage5_gp.py
 ```
 
-The error at each video moment, E_i = q_sensor(s_i)⁻¹ · q_video_i, is taken as a rotation
-vector in the racket frame. It is unwrapped so it stays continuous through 180°, then one
-GP per component (scikit-learn, constant × RBF + white noise; impact moments get extra
-noise) is fitted over time. The predicted error is removed at every sample:
-q(s) = q_sensor(s) · exp(gp(s)). Fitted length scales are 0.11–0.14 s.
+The error at each video moment, E_i = q_sensor(s_i)⁻¹ · q_video_i, is taken as a rotation vector in
+the racket frame and unwrapped so it stays continuous through 180°. One GP per component
+(scikit-learn, constant × RBF + white noise; impact moments get extra noise) is fitted over time,
+and the predicted error is removed at every sample: q(s) = q_sensor(s) · exp(gp(s)). Fitted length
+scales are 0.11–0.14 s, about four video frames.
 
 | | mean | median | max |
 |---|---|---|---|
@@ -198,6 +214,19 @@ q(s) = q_sensor(s) · exp(gp(s)). Fitted length scales are 0.11–0.14 s.
 | GP, fitted on all moments | 7.5° | 4.8° | 33.4° |
 | **GP, leave-one-out** | **12.4°** | **8.3°** | 44.1° (impact frame) |
 
-GP 1σ per sample: median 16.9°, max 22°, saved as `gp_std_deg`. The overlay and demo
-captions show the leave-one-out error. Outputs: `out/orientation.csv`, `stage5_gp.png`,
-`stage5_gp.json`, `stroke_3d_gp.mp4`.
+GP 1σ per sample: median 16.9°, max 22°, saved as `gp_std_deg`. Outputs: `out/orientation.csv`,
+`stage5_gp.png`, `stage5_gp.json`, `stroke_3d_gp.mp4`.
+
+## Stage 6 – overlays and videos
+
+```
+.venv\Scripts\python scripts\stage6_overlay.py
+.venv\Scripts\python scripts\make_demo.py
+.venv\Scripts\python scripts\make_gp_video.py
+```
+
+The reconstructed racket is projected into every IMU-window frame of both videos using the stage-3
+cameras and racket positions (the IMU gives orientation only). `overlay_*.mp4` and
+`overlay_contact_sheet.png` show the GP-corrected racket with the leave-one-out error in the
+captions; `demo.mp4` puts front, rear and corrected racket side by side; `gp_correction.mp4` draws
+the sensor-only (orange) and corrected (green) rackets together with a live error chart.
