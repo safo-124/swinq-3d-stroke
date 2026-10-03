@@ -17,7 +17,8 @@ orientation and an independent check.
 | Rotation in the last 100 ms | 85° |
 | Saturation repair | ax clipped at 16 g on samples 182–199; filled with r·ω⊥² + c (fit corr 1.00) → peak about 29.5 g |
 | String vibration | 164.5 Hz as sampled; at 416 Hz this is an alias of 251 or **581 Hz** (typical string-bed range) |
-| Video check | agreement within 5° up to about 0.18 s before impact; diverges after (see "Known limitation") |
+| Video check, sensor only | within 5° up to about 0.18 s before impact; diverges after (see "Known limitation") |
+| **Video check, gyro + GP drift correction** | **mean 12.4°, median 8.3° leave-one-out** (was 88° mean); worst 44° at the impact frame |
 
 ## Run everything
 
@@ -25,13 +26,17 @@ orientation and an independent check.
 .venv\Scripts\python scripts\stage1_inspect.py
 .venv\Scripts\python scripts\stage2_integrate.py
 .venv\Scripts\python scripts\stage3_bundle.py          # ~1.5 min, video orientations
-.venv\Scripts\python scripts\stage4_sensor_model.py    # orientation.csv, motion params, 3D animation
+.venv\Scripts\python scripts\stage4_sensor_model.py    # orientation_sensor_only.csv, motion params, 3D animation
+.venv\Scripts\python scripts\stage5_gp.py              # GP drift correction -> orientation.csv
+.venv\Scripts\python scripts\stage6_overlay.py         # overlays on both videos
+.venv\Scripts\python scripts\make_demo.py              # out/demo.mp4, 10x slow motion
 blender --python blender\animate_racket.py             # Blender scene, keyframed from out/orientation.csv
 blender --background --python blender\animate_racket.py -- --render out\blender_stroke.mp4
 ```
 
-Deliverables in `out/`: `orientation.csv` (per sample: racket quaternion in the
-camera-1 frame, plus `bl_q*` in a z-up Blender world), `motion_params.json`,
+Deliverables in `out/`: `orientation.csv` (per sample: GP-corrected racket quaternion in the
+camera-1 frame, `gp_std_deg`, plus `bl_q*` in a z-up Blender world), `orientation_sensor_only.csv`
+(the same without the video correction), `motion_params.json`, `demo.mp4`,
 `stroke_3d.mp4` (matplotlib 3D animation; no Blender needed), `stage4_summary.png`.
 
 ## Known limitation (stated plainly)
@@ -48,8 +53,9 @@ Gyro and video orientations agree to 2–5° for the first ~0.2 s, then diverge,
 Through mid-swing the gyro measures 2–3× more rotation than the video shows, yet the
 accelerometer confirms the gyro scale (centripetal radius 0.65 m is physical). The
 remaining suspects are the video/IMU time alignment and the per-frame video poses at
-30 fps with heavy motion blur. The planned GP correction (stage 5) was dropped: it would
-only paper over a discrepancy of this size.
+30 fps with heavy motion blur. Stage 5 corrects the drift with a GP fitted to the video
+moments. That makes `orientation.csv` a sensor + video fusion, so the pure sensor result is
+kept in `orientation_sensor_only.csv`.
 
 ## Layout
 
@@ -173,3 +179,25 @@ caption. Outputs `out/overlay_front.mp4`, `out/overlay_rear.mp4` (6 fps) and
 `out/overlay_contact_sheet.png`. The racket position comes from stage 3, because the
 IMU gives orientation only. The overlay sits on the racket from −0.47 s to −0.27 s
 (3–11°) in both views and diverges from −0.20 s, as described under "Known limitation".
+
+## Stage 5 – GP drift correction
+
+```
+.venv\Scripts\python scripts\stage5_gp.py
+```
+
+The error at each video moment, E_i = q_sensor(s_i)⁻¹ · q_video_i, is taken as a rotation
+vector in the racket frame. It is unwrapped so it stays continuous through 180°, then one
+GP per component (scikit-learn, constant × RBF + white noise; impact moments get extra
+noise) is fitted over time. The predicted error is removed at every sample:
+q(s) = q_sensor(s) · exp(gp(s)). Fitted length scales are 0.11–0.14 s.
+
+| | mean | median | max |
+|---|---|---|---|
+| sensor only | 88.4° | 104.2° | 168.6° |
+| GP, fitted on all moments | 7.5° | 4.8° | 33.4° |
+| **GP, leave-one-out** | **12.4°** | **8.3°** | 44.1° (impact frame) |
+
+GP 1σ per sample: median 16.9°, max 22°, saved as `gp_std_deg`. The overlay and demo
+captions show the leave-one-out error. Outputs: `out/orientation.csv`, `stage5_gp.png`,
+`stage5_gp.json`, `stroke_3d_gp.mp4`.

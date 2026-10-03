@@ -1,9 +1,9 @@
 """Stage 6: draw the sensor-only racket onto both videos.
 
-Orientation: out/orientation.csv (IMU only, start anchored on video moments 0-4).
+Orientation: out/orientation.csv (gyro + GP drift correction, stage 5).
 Position: stage-3 racket translation per moment (the IMU gives orientation only).
 Cameras: stage-3 focal lengths and relative pose.
-Green = sensor racket, red dots = hand-clicked points, white text = angle to video pose.
+Green = GP-corrected sensor racket, red dots = hand-clicked points, white text = angle to video pose.
 
 Outputs out/overlay_front.mp4, out/overlay_rear.mp4, out/overlay_contact_sheet.png
 """
@@ -60,7 +60,8 @@ def main():
     q_m = gyro.sample_at(q_imu, s)
     R_m = quat.to_matrix(q_m)
     t_m = vid[["tx", "ty", "tz"]].to_numpy()
-    ang = np.rad2deg(quat.angle_between(q_m, vid[["qw", "qx", "qy", "qz"]].to_numpy()))
+    # captions show the leave-one-out error from stage 5 (the GP never saw that moment)
+    ang = np.array(json.loads((config.OUT_DIR / "stage5_gp.json").read_text())["per_moment"]["loo"])
     anchors = load_anchors()
 
     sheet_rows = []
@@ -74,7 +75,7 @@ def main():
         for m, fr in enumerate(a.frames):
             phase = "impact" if m == 14 else ("before" if m < 14 else "after")
             label = (f"{view} frame {fr}  t={a.t_from_impact[m]:+.3f}s ({phase})  "
-                     f"sensor vs video pose: {ang[m]:.0f} deg"
+                     f"error vs video (leave-one-out): {ang[m]:.0f} deg"
                      + ("  [start anchor]" if m < config.ANCHOR_MOMENTS else ""))
             img = draw(frames[fr][0].copy(), R_m[m], t_m[m], view, cam, shapes, a.uv[m], label)
             out.write(img)
@@ -88,7 +89,7 @@ def main():
         out.release()
         sheet_rows.append(np.hstack(tiles))
     cv2.imwrite(str(config.OUT_DIR / "overlay_contact_sheet.png"), np.vstack(sheet_rows))
-    print("angle sensor vs video per moment:", ang.round(0).astype(int).tolist())
+    print("leave-one-out error per moment:", ang.round(0).astype(int).tolist())
     print("wrote out/overlay_front.mp4, out/overlay_rear.mp4, out/overlay_contact_sheet.png")
 
 

@@ -68,3 +68,9 @@ GYRO_SIGN = -1                    # sign -1 matches video over moments 0-4 (3-5 
 ANCHOR_MOMENTS = 5                # first video moments used for the start orientation
 RADIUS_FIT_WINDOW = (0, 182)      # unclipped pre-impact samples for the pivot radius
 AX_FIT_WINDOW = (170, 182)        # last unclipped samples for the saturation fill
+
+# --- GP drift correction (stage 5) ---------------------------------------------
+GP_LENGTH_S = 0.1                 # initial RBF length scale (s)
+GP_LENGTH_BOUNDS_S = (0.02, 2.0)  # RBF length-scale bounds (s)
+GP_NOISE_RAD = 0.02               # per-moment video noise (~1 deg) added to the diagonal
+GP_IMPACT_NOISE_RAD = 0.15        # ~9 deg: moments in IMPACT_DOWNWEIGHT trusted less

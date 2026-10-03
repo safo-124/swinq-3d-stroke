@@ -116,3 +116,13 @@ def test_sample_at_integer_and_fraction():
     assert np.allclose(gyro.sample_at(q, 4.0), q[4])
     ang = deg(quat.to_rotvec(gyro.sample_at(q, 4.25))[2])
     assert np.isclose(ang, 4.25)
+
+
+def test_unwrap_rotvecs_removes_pi_flip():
+    """A rotation passing 180 deg about z flips sign in the log map; unwrap keeps it smooth."""
+    from racket import gp
+    ang = np.deg2rad(np.linspace(150, 210, 13))
+    r = quat.to_rotvec(quat.from_rotvec(np.c_[0 * ang, 0 * ang, ang]))   # wraps at 180
+    assert np.abs(np.diff(r[:, 2])).max() > 1.0
+    u = gp.unwrap_rotvecs(r)
+    assert np.allclose(u[:, 2], ang, atol=1e-9)

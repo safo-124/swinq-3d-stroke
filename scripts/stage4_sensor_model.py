@@ -130,7 +130,7 @@ def main():
                    "ax_fill_local_r_m": r_local, "ax_fill_offset_g": c_local, "ax_fill_corr": corr,
                    "string_vibration_sampled_hz": f_vib, "string_vibration_aliases_hz": aliases})
 
-    save_orientation_csv(q, imu, config.OUT_DIR / "orientation.csv")
+    save_orientation_csv(q, imu, config.OUT_DIR / "orientation_sensor_only.csv")
     err = plot_summary(imu, ax_filled, radius, q, (vs, qv), params, config.OUT_DIR / "stage4_summary.png")
     params["video_agreement_deg_per_moment"] = err.round(1).tolist()
     (config.OUT_DIR / "motion_params.json").write_text(json.dumps(params, indent=2))
@@ -145,7 +145,7 @@ def main():
         print(f"  {k:42s} {params[k]:.2f}")
     print(f"  string vibration aliases (Hz): {np.round(aliases, 0)}")
     print(f"video agreement per moment (deg): {err.round(0).astype(int).tolist()}")
-    print("wrote out/orientation.csv, motion_params.json, stage4_summary.png, stroke_3d.mp4")
+    print("wrote out/orientation_sensor_only.csv, motion_params.json, stage4_summary.png, stroke_3d.mp4")
 
 
 if __name__ == "__main__":

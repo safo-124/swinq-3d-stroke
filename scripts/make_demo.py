@@ -74,13 +74,14 @@ def main():
     q_imu = pd.read_csv(config.OUT_DIR / "orientation.csv")[["qw", "qx", "qy", "qz"]].to_numpy()
     ms = vid.imu_sample.to_numpy()
     t_m = vid[["tx", "ty", "tz"]].to_numpy()
-    err = np.rad2deg(quat.angle_between(gyro.sample_at(q_imu, ms), vid[["qw", "qx", "qy", "qz"]].to_numpy()))
+    # honest number: leave-one-out error from stage 5 (the GP never saw that moment)
+    err = np.array(json.loads((config.OUT_DIR / "stage5_gp.json").read_text())["per_moment"]["loo"])
 
     A = load_anchors()
     frames = {v: read_frames(config.VIDEOS[v], wanted=A[v].frames) for v in ("front", "rear")}
     boxes = {v: crop_box(A[v].uv) for v in ("front", "rear")}
     render = render_reader()
-    third_title = "Blender render (sensor only)" if render else "Sensor-only racket on front video"
+    third_title = "Blender render (gyro + GP)" if render else "Gyro + GP racket on front video"
 
     n_out = int((len(q_imu) - 1) / config.FS_HZ * FPS * SLOWMO) + 1
     W, H = 3 * PANEL_W, PANEL_H + BAR_H
@@ -116,9 +117,9 @@ def main():
         cv2.putText(bar, f"t = {t_imp:+.3f} s  ({phase})", (480, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
                     (106, 196, 233), 2, cv2.LINE_AA)
         colour = (80, 220, 80) if err[m] < 15 else ((60, 170, 255) if err[m] < 45 else (80, 80, 255))
-        cv2.putText(bar, f"angle error {err[m]:5.1f} deg", (1060, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+        cv2.putText(bar, f"error {err[m]:5.1f} deg (leave-one-out)", (1000, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
                     colour, 2, cv2.LINE_AA)
-        cv2.putText(bar, f"{SLOWMO}x slow motion", (1640, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+        cv2.putText(bar, f"{SLOWMO}x slow", (1700, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                     (200, 200, 200), 1, cv2.LINE_AA)
         ff.stdin.write(np.vstack([bar, np.hstack([p1, p2, p3])]).tobytes())
     ff.stdin.close()
