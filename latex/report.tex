@@ -11,6 +11,7 @@
 \usepackage[margin=2.4cm]{geometry}
 \usepackage{amsmath,amssymb,bm}
 \usepackage{booktabs,array,multirow}
+\usepackage{siunitx}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{caption}
@@ -387,8 +388,9 @@ $-1$ & $35.9\dg$ & $48.1\dg$ & $(-192,-20,-28)$ & $58\dg$ & $-50$\,ms (bound)\\\
 not depend on $\q_0$) shows that through the fast phase the gyro measures 2--3 times more rotation
 than the video: for example, between moments 6 and 9 the gyro turns $55\dg$ and the video $18\dg$.
 The accelerometer supports the gyro scale: Eq.~\eqref{eq:centripetal} gives a physically sensible
-pivot radius of \SI{0.65}{m}. If the gyro read $k$ times too high, the fitted radius would be
-$0.65/k^{-2}$ times too small, i.e.\ \SI{4}{}--\SI{6}{m} for $k=2.5$--$3$.
+pivot radius of \SI{0.65}{m}. If the gyro read $k$ times too high, the true rate would be
+$\omega/k$ and the true radius $k^2\times\SI{0.65}{m}$, i.e.\ 4--\SI{6}{m} for $k=2.5$--$3$,
+which is not physical for a forehand.
 
 \paragraph{Axis conventions.} We tested all 48 signed permutation matrices $\mathbf{P}$
 ($\tilde{\w}\mapsto\mathbf{P}\tilde{\w}$, both handednesses). The median error between consecutive
