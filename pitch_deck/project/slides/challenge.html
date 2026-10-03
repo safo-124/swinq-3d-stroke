@@ -1,0 +1,26 @@
+<section id="challenge" data-transition="fade" style="background:#F3F1EA;color:#13202D;font-family:'Public Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:64px">
+<h2 style="font-family:'Oswald', Arial, sans-serif;font-size:72px;font-weight:600;text-transform:uppercase">The data is hard</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px;background:#FFFDF7;border:1px solid #DDD8CC;border-radius:16px;padding:48px">
+<p style="font-family:'Oswald', Arial, sans-serif;font-size:120px;font-weight:600;line-height:1;color:#1F5FBF">0.96 s</p>
+<p style="font-size:32px;line-height:1.4;color:#4A5563">400 samples at 416 Hz, starting mid-swing. No still moment to calibrate on.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#FFFDF7;border:1px solid #DDD8CC;border-radius:16px;padding:48px">
+<p style="font-family:'Oswald', Arial, sans-serif;font-size:120px;font-weight:600;line-height:1;color:#1F5FBF">1720°/s</p>
+<p style="font-size:32px;line-height:1.4;color:#4A5563">Peak racket rotation rate, 2.4 ms before impact.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#FFFDF7;border:1px solid #DDD8CC;border-radius:16px;padding:48px">
+<p style="font-family:'Oswald', Arial, sans-serif;font-size:120px;font-weight:600;line-height:1;color:#1F5FBF">16 g</p>
+<p style="font-size:32px;line-height:1.4;color:#4A5563">Accelerometer limit, hit for the 18 samples right before impact.</p>
+</div>
+</div>
+<aside>[0:20-0:45 | 25 s]
+
+SAY: "The data is tough. We get less than one second of recording. It starts in the middle of the swing, so we never see the racket standing still. The racket spins at over 1,700 degrees per second. And just before it hits the ball, one of the sensors maxes out."
+
+IN PLAIN WORDS:
+- 0.96 s: the sensor records 416 readings per second, so we only get 400 readings in total.
+- Why "starting mid-swing" is a problem: to know which way is up, you normally hold the sensor still and let it feel gravity. Here it is never still.
+- 1720 degrees per second: almost five full turns every second.
+- 16 g: the sensor that measures force can only count up to 16 times the force of gravity, like a bathroom scale that only goes up to 100 kg. During the fastest part of the swing the real force was higher, so the sensor just reads "maximum" for a moment.</aside>
+</section>

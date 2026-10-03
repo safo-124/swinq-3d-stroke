@@ -1,0 +1,28 @@
+<section id="approach" data-transition="fade" style="background:#F3F1EA;color:#13202D;font-family:'Public Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<h2 style="font-family:'Oswald', Arial, sans-serif;font-size:72px;font-weight:600;text-transform:uppercase">How it works</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:20px;background:#FFFDF7;border:1px solid #DDD8CC;border-top:8px solid #1F5FBF;border-radius:16px;padding:48px">
+<x-icon name="Activity" style="color:#1F5FBF;width:64px;height:64px"></x-icon>
+<h3 style="font-size:40px;font-weight:700">Gyro → orientation</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5563">The sensor says how fast the racket turns. Adding up those turns, 416 times a second, gives its angle. Tested to 0.03°.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px;background:#FFFDF7;border:1px solid #DDD8CC;border-top:8px solid #1F5FBF;border-radius:16px;padding:48px">
+<x-icon name="Wrench" style="color:#1F5FBF;width:64px;height:64px"></x-icon>
+<h3 style="font-size:40px;font-weight:700">Physics fills the gap</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5563">The force sensor tops out at 16 g. How fast the racket spins tells us how hard it pulled, so we fill in the missing part.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px;background:#FFFDF7;border:1px solid #DDD8CC;border-top:8px solid #1F5FBF;border-radius:16px;padding:48px">
+<x-icon name="Verified" style="color:#1F5FBF;width:64px;height:64px"></x-icon>
+<h3 style="font-size:40px;font-weight:700">Video as referee</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5563">Two cameras check our answer. The video gives only the starting angle; the motion comes from the sensor.</p>
+</div>
+</div>
+<aside>[0:45-1:20 | 35 s]
+
+SAY: "We did three things. First, the sensor tells us how fast the racket is turning, and by adding up those small turns we know its angle at every moment. Second, where the force sensor maxed out, we filled the gap using physics: how fast it spins tells us how hard it must have pulled. Third, we used the two videos as a referee, to check our answer."
+
+IN PLAIN WORDS:
+- Card 1, turning into angle: imagine walking with your eyes closed and counting your turns: "a quarter turn left, a half turn right". If you count well, you always know which way you face. The sensor does this 416 times a second. We tested our maths on a made-up swing where we knew the right answer: it was off by only 0.03 degrees.
+- Card 2, the maxed-out sensor: like a car in a corner, the faster you spin, the harder you are pushed outwards. We know how fast the racket spins, so we can work out the push the sensor should have felt and fill in the missing part.
+- Card 3, video as referee: the sensor only knows how the racket turned, not where it started (like a step counter that knows how many steps you took, but not where you began). So we take the starting angle from the video, and then check everything after against it.</aside>
+</section>

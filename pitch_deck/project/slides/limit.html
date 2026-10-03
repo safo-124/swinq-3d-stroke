@@ -1,0 +1,27 @@
+<section id="limit" data-transition="fade" style="background:#F3F1EA;color:#13202D;font-family:'Public Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Oswald', Arial, sans-serif;font-size:72px;font-weight:600;text-transform:uppercase">Correcting the drift</h2>
+<div style="display:flex;flex-direction:row;gap:48px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Oswald', Arial, sans-serif;font-size:120px;font-weight:600;line-height:1;color:#8A94A0">88°</p>
+<p style="font-size:28px;color:#4A5563">mean error before correction</p>
+</div>
+<x-shape kind="arrow-right" style="background:#1F5FBF;width:120px;height:60px"></x-shape>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Oswald', Arial, sans-serif;font-size:120px;font-weight:600;line-height:1;color:#1F5FBF">12.4°</p>
+<p style="font-size:28px;color:#4A5563">mean error after correction, tested on frames it never saw</p>
+</div>
+</div>
+<img src="/_blob/5d90c1bf569a6ce8d4e2c9ed8b0e5947" alt="Contact sheet: GP-corrected racket outline overlaid on front and rear video frames, now following the racket through impact and follow-through" style="width:1664px;height:333px;object-fit:contain;border-radius:12px">
+<aside>[2:10-2:45 | 35 s]
+
+SAY: "So we correct the drift. At every video frame we measure how far off we are. Then we draw a smooth curve through those errors and subtract it from the sensor's racket. We tested it fairly, on frames the correction never saw, and the error drops from 88 degrees to about 12." (Play gp_correction.mp4 here: orange = before, green = after.)
+
+IN PLAIN WORDS:
+- 88 degrees: on average, the uncorrected racket was pointing almost a right angle away from the real one.
+- 12 degrees: after the correction, it is close to the real racket.
+- How the correction works: think of checkpoints in a race. At each video frame we know exactly how far off we are. Between checkpoints, a smooth curve (a "Gaussian process", a standard statistics tool) estimates the error, and we remove it.
+- Why "frames it never saw" matters: we hid one frame at a time, built the correction from the others, and checked whether it predicted the hidden frame. That is a fair test, not just copying the video.
+- Biggest remaining errors: right at the moment of impact (the ball shakes the sensor) and in the fast turns after it.
+- If asked "is it still sensor-only?": the corrected racket combines the sensor and the video. The speeds and numbers on slide 4 are from the sensor only, and we keep the pure sensor result too.
+- If asked what we ruled out: every way the sensor axes could be set up (48), different recording speeds, and sensor tilt; the force sensor also agrees with the spin sensor.</aside>
+</section>
