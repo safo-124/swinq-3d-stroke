@@ -160,3 +160,16 @@ Results:
 to a physical solution (see "Known limitation"). The delivered model
 (`racket.motion`, `scripts/stage4_sensor_model.py`) therefore uses the video only for
 the starting orientation (moments 0–4, sign −1, zero bias) and the IMU for everything else.
+
+## Stage 6 – overlay check
+
+```
+.venv\Scripts\python scripts\stage6_overlay.py
+```
+
+Draws the sensor-only racket (green; red stub = face normal) on every IMU-window frame
+of both videos, with the clicked points in red and the angle to the video pose in the
+caption. Outputs `out/overlay_front.mp4`, `out/overlay_rear.mp4` (6 fps) and
+`out/overlay_contact_sheet.png`. The racket position comes from stage 3, because the
+IMU gives orientation only. The overlay sits on the racket from −0.47 s to −0.27 s
+(3–11°) in both views and diverges from −0.20 s, as described under "Known limitation".
