@@ -46,7 +46,7 @@
 % big-number helper
 \newcommand{\bignum}[2]{\begin{minipage}[t]{\linewidth}\centering
   {\fontsize{30}{32}\selectfont\bfseries\color{tauPurple}#1}\\[0.3em]{\small\color{inkGrey}#2}\end{minipage}}
-\newcommand{\deg}{\ensuremath{^{\circ}}}
+\newcommand{\dg}{\ensuremath{^{\circ}}}
 
 \title{One sensor. One forehand. In 3D.}
 \subtitle{Rebuilding a tennis swing from the SWINQ dampener}
@@ -82,7 +82,7 @@ PLAIN WORDS: the sensor is like the motion sensor in your phone. Brown = handle,
 \vspace{0.8em}
 \begin{columns}[t]
 \column{0.32\textwidth}\uncover<1->{\bignum{0.96\,s}{400 readings, 416 per second.\\Starts mid-swing: never still.}}
-\column{0.32\textwidth}\uncover<2->{\bignum{1720\deg/s}{peak spin: almost\\5 full turns per second}}
+\column{0.32\textwidth}\uncover<2->{\bignum{1720\dg/s}{peak spin: almost\\5 full turns per second}}
 \column{0.32\textwidth}\uncover<3->{\bignum{16\,g}{force sensor maxes out\\for 18 readings before impact}}
 \end{columns}
 \vspace{1.4em}
@@ -125,7 +125,7 @@ PLAIN WORDS: to know which way is up you normally hold the sensor still and feel
 \column{0.48\textwidth}
 \uncover<1->{\begin{block}{1. Turning $\rightarrow$ angle}
 \[\underbrace{\theta_{\text{new}}}_{\text{angle now}} = \underbrace{\theta_{\text{old}}}_{\text{angle before}} + \underbrace{\omega\,\Delta t}_{\text{small turn}}\]
-\small Done 416$\times$ per second, in full 3D (quaternions). Tested: 0.03\deg{} error.
+\small Done 416$\times$ per second, in full 3D (quaternions). Tested: 0.03\dg{} error.
 \end{block}}
 \column{0.48\textwidth}
 \uncover<2->{\begin{block}{2. Physics fills the gap}
@@ -148,7 +148,7 @@ PLAIN WORDS: like counting your turns with eyes closed. Like a car in a corner: 
 \uncover<1->{{\fontsize{34}{36}\selectfont\bfseries\color{accGold}89 km/h}\\[0.2em]
 {\small\color{tauLilac} racket-head speed at impact}\\[0.2em]
 {\small $v = \omega\,r = 26.7\,\tfrac{\text{rad}}{\text{s}}\times 0.92\,\text{m} \approx 24.6\,\tfrac{\text{m}}{\text{s}}$}}\\[1.0em]
-\uncover<2->{{\fontsize{34}{36}\selectfont\bfseries\color{accGold}85\deg}\\[0.2em]
+\uncover<2->{{\fontsize{34}{36}\selectfont\bfseries\color{accGold}85\dg}\\[0.2em]
 {\small\color{tauLilac} racket turn in the last 0.1\,s before impact}}
 \column{0.5\textwidth}
 \uncover<3->{{\fontsize{34}{36}\selectfont\bfseries\color{accGold}$\approx$30\,g}\\[0.2em]
@@ -167,10 +167,9 @@ PLAIN WORDS: speed = how fast it turns times how far the head is from the wrist.
 {\small Green = racket from the sensor alone. Top: front camera. Bottom: rear camera. Left $\rightarrow$ right: time.}\\[0.5em]
 \begin{tikzpicture}
   \node[inner sep=0] (img) {\includegraphics[width=\textwidth]{img/contact_sensor_only.png}};
-  \uncover<2->{\draw[accGreen,line width=2pt,rounded corners] ($(img.south west)+(0.02,0.02)$) rectangle ($(img.south west)!0.5!(img.north west)+(0.5\textwidth,0)+(0,0.0)$);}
-  \uncover<2->{\draw[accGreen,line width=2pt,rounded corners] (img.north west) rectangle ($(img.north west)+(0.5\textwidth,-\paperheight*0)+(0,-0.01)$);}
+  \uncover<2->{\draw[accGreen,line width=2.5pt,rounded corners] (img.south west) rectangle ($(img.north west)!0.5!(img.north east)$);}
 \end{tikzpicture}\\[0.6em]
-\only<2>{\textcolor{accGreen}{\bfseries Early swing: within 11\deg.}}%
+\only<2>{\textcolor{accGreen}{\bfseries Early swing: within 11\dg.}}%
 \only<3->{\textcolor{accOrange}{\bfseries Fast part of the swing: it drifts}\ (gyro sees 2--3$\times$ more turn than the 30\,fps video).}
 \note{[1:45--2:10] SAY: To check our work we used two videos. Green is our sensor's racket drawn on the real footage. Early in the swing it matches; as the swing speeds up it drifts.
 PLAIN WORDS: small counting mistakes add up. Best explanation: blurry 30 fps video and camera/sensor clocks not perfectly lined up. We ruled out axis set-up, recording speed and mounting angle.}
@@ -186,9 +185,9 @@ PLAIN WORDS: small counting mistakes add up. Best explanation: blurry 30 fps vid
 \[q_{\text{corrected}}(t) = q_{\text{sensor}}(t)\cdot \exp\!\big(\hat e(t)\big)\]
 \end{block}}
 \uncover<2->{\begin{center}
-{\fontsize{30}{32}\selectfont\bfseries\color{inkGrey}88\deg}
+{\fontsize{30}{32}\selectfont\bfseries\color{inkGrey}88\dg}
 \begin{tikzpicture}[baseline=-0.6ex]\draw[-{Stealth[length=3mm]},line width=3pt,tauPurple] (0,0) -- (1.1,0);\end{tikzpicture}
-{\fontsize{30}{32}\selectfont\bfseries\color{tauPurple}12.4\deg}\\[0.2em]
+{\fontsize{30}{32}\selectfont\bfseries\color{tauPurple}12.4\dg}\\[0.2em]
 {\scriptsize\color{inkGrey} mean error, tested on frames the correction never saw}
 \end{center}}
 \column{0.56\textwidth}
